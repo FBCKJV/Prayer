@@ -13,4 +13,4 @@ export const ONESIGNAL_SAFARI_WEB_ID = 'web.onesignal.auto.3377791d-2467-4a62-9f
 
 // The URL of your Cloudflare Worker (cloudflare-worker/notify.js), e.g.
 // 'https://prayer-notify.fbckjv.app'  or the *.workers.dev URL it gives you.
-export const NOTIFY_ENDPOINT = '';
+export const NOTIFY_ENDPOINT = 'https://prayer-notify.coondawg68.workers.dev';
