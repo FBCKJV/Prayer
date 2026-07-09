@@ -19,6 +19,11 @@ const els = {
   invite: $('#inviteInput'),
   authError: $('#authError'),
   authSubmit: $('#authSubmit'),
+  membersBtn: $('#membersBtn'),
+  membersDialog: $('#membersDialog'),
+  membersClose: $('#membersClose'),
+  membersList: $('#membersList'),
+  membersNote: $('#membersNote'),
   newPrayer: $('#newPrayerBtn'),
   feedList: $('#feedList'),
   feedEmpty: $('#feedEmpty'),
@@ -38,7 +43,18 @@ let currentUser = null;       // firebase user
 let prayers = [];             // latest snapshot
 let filter = 'all';
 let unsubPrayers = null;
+let unsubMembers = null;
+let members = [];             // live member directory
+let roleByUid = {};           // uid -> role ('admin' for moderators)
+let isAdmin = false;          // is the signed-in user a moderator?
 const openComments = new Map(); // prayerId -> { unsub, listEl }
+
+function isModerator(uid) {
+  return roleByUid[uid] === 'admin';
+}
+function moderatorBadge() {
+  return el('span', 'mod-badge', 'Moderator');
+}
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 
@@ -194,7 +210,9 @@ function buildCard(p) {
   card.appendChild(el('p', 'card-body', p.body || ''));
 
   const meta = el('div', 'card-meta');
-  meta.appendChild(el('span', null, p.author || 'A member'));
+  const author = el('span', null, p.author || 'A member');
+  if (isModerator(p.uid)) author.appendChild(moderatorBadge());
+  meta.appendChild(author);
   meta.appendChild(el('span', null, '·'));
   meta.appendChild(el('span', null, timeAgo(p.createdAt)));
   card.appendChild(meta);
@@ -211,12 +229,13 @@ function buildCard(p) {
   commentToggle.type = 'button';
   const cc = p.commentCount || 0;
   commentToggle.textContent = cc ? `💬 Updates (${cc})` : '💬 Add update';
-  commentToggle.addEventListener('click', () => toggleComments(p.id, card));
+  commentToggle.addEventListener('click', () => toggleComments(p, card));
   actions.appendChild(commentToggle);
 
   actions.appendChild(el('span', 'spacer'));
 
-  if (mine) {
+  // The author can answer/delete their own request; a moderator can act on any.
+  if (mine || isAdmin) {
     const ans = el('button', 'link-btn');
     ans.type = 'button';
     ans.textContent = p.answered ? 'Reopen' : 'Mark answered';
@@ -229,7 +248,9 @@ function buildCard(p) {
     del.type = 'button';
     del.textContent = 'Delete';
     del.addEventListener('click', async () => {
-      if (!confirm('Delete this prayer request?')) return;
+      const msg = mine ? 'Delete this prayer request?'
+        : 'Delete this member’s prayer request as a moderator?';
+      if (!confirm(msg)) return;
       closeComments(p.id);
       try { await store.deletePrayer(p.id); } catch (_) {}
     });
@@ -273,7 +294,8 @@ async function onPray(p, prayed, btn) {
   catch (_) {} finally { btn.disabled = false; }
 }
 
-function renderComments(listEl, items) {
+function renderComments(listEl, items, prayer) {
+  const uid = currentUser && currentUser.uid;
   listEl.innerHTML = '';
   if (!items.length) {
     listEl.appendChild(el('p', 'comment-body', 'No updates yet. Be an encouragement.'));
@@ -282,22 +304,36 @@ function renderComments(listEl, items) {
   for (const c of items) {
     const wrap = el('div', 'comment');
     const head = document.createElement('div');
-    head.appendChild(el('span', 'comment-author', c.author || 'A member'));
+    const author = el('span', 'comment-author', c.author || 'A member');
+    if (isModerator(c.uid)) author.appendChild(moderatorBadge());
+    head.appendChild(author);
     head.appendChild(el('span', 'comment-time', timeAgo(c.createdAt)));
+    // Deletable by its author, the prayer's author, or a moderator.
+    if (c.uid === uid || isAdmin || prayer.uid === uid) {
+      const del = el('button', 'link-btn danger', '✕');
+      del.type = 'button';
+      del.title = 'Delete update';
+      del.addEventListener('click', async () => {
+        if (!confirm('Delete this update?')) return;
+        try { await store.deleteComment(prayer.id, c.id); } catch (_) {}
+      });
+      head.appendChild(del);
+    }
     wrap.appendChild(head);
     wrap.appendChild(el('div', 'comment-body', c.body || ''));
     listEl.appendChild(wrap);
   }
 }
 
-function toggleComments(id, card) {
+function toggleComments(prayer, card) {
+  const id = prayer.id;
   if (openComments.has(id)) { closeComments(id); return; }
   const box = card.querySelector('.comments');
   const listEl = box.querySelector('.comment-list');
   box.classList.add('open');
   const rec = { unsub: null, listEl };
   openComments.set(id, rec);
-  store.watchComments(id, (items) => renderComments(listEl, items), () => {})
+  store.watchComments(id, (items) => renderComments(listEl, items, prayer), () => {})
     .then((unsub) => { rec.unsub = unsub; });
 }
 
@@ -339,6 +375,57 @@ els.composerForm.addEventListener('submit', async (e) => {
   }
 });
 
+/* ── members / moderation ─────────────────────────────────────────────── */
+
+function memberJoined(ts) {
+  if (!ts || !ts.toDate) return '';
+  return 'Joined ' + ts.toDate().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function renderMembers() {
+  const uid = currentUser && currentUser.uid;
+  els.membersNote.textContent = isAdmin
+    ? 'You’re a moderator. You can see everyone and revoke access. Removing a member cuts off their access immediately.'
+    : `${members.length} member${members.length === 1 ? '' : 's'}. Everyone here posts under their real name — there are no private messages.`;
+  els.membersList.innerHTML = '';
+  for (const m of members) {
+    const row = el('div', 'member');
+    const info = el('div', 'member-info');
+    const name = el('div', 'member-name', m.name || 'A member');
+    if (m.role === 'admin') name.appendChild(moderatorBadge());
+    info.appendChild(name);
+    // Names + join dates are visible to all; emails only to moderators.
+    const sub = [memberJoined(m.createdAt)];
+    if (isAdmin && m.email) sub.unshift(m.email);
+    info.appendChild(el('div', 'member-sub', sub.filter(Boolean).join(' · ')));
+    row.appendChild(info);
+
+    if (m.id === uid) {
+      row.appendChild(el('span', 'member-you', 'You'));
+    } else if (isAdmin) {
+      const rm = el('button', 'member-remove', 'Remove');
+      rm.type = 'button';
+      rm.addEventListener('click', async () => {
+        const warn = m.role === 'admin'
+          ? `Remove moderator ${m.name}? They’ll lose all access.`
+          : `Remove ${m.name} from the prayer chain? They’ll lose all access immediately.`;
+        if (!confirm(warn)) return;
+        rm.disabled = true;
+        try { await store.removeMember(m.id); }
+        catch (_) { rm.disabled = false; alert('Could not remove this member.'); }
+      });
+      row.appendChild(rm);
+    }
+    els.membersList.appendChild(row);
+  }
+}
+
+els.membersBtn.addEventListener('click', () => {
+  renderMembers();
+  if (typeof els.membersDialog.showModal === 'function') els.membersDialog.showModal();
+});
+els.membersClose.addEventListener('click', () => els.membersDialog.close());
+
 /* ── view switching ───────────────────────────────────────────────────── */
 
 function showAuthView() {
@@ -365,9 +452,24 @@ async function showFeedView() {
   }
   if (currentUser !== user) return; // signed out / changed while waiting
   els.who.textContent = (prof && prof.name) || user.email || '';
+  isAdmin = !!(prof && prof.role === 'admin');
   if (!unsubPrayers) {
     unsubPrayers = await store.watchPrayers(
       (items) => { prayers = items; renderFeed(); },
+      () => {}
+    );
+  }
+  if (!unsubMembers) {
+    unsubMembers = await store.watchMembers(
+      (list) => {
+        members = list;
+        roleByUid = {};
+        for (const m of list) roleByUid[m.id] = m.role;
+        // A moderator's role could change live; keep our own flag in sync.
+        isAdmin = roleByUid[user.uid] === 'admin';
+        renderFeed();
+        if (els.membersDialog.open) renderMembers();
+      },
       () => {}
     );
   }
@@ -390,8 +492,13 @@ async function boot() {
         await showFeedView();
       } else {
         if (unsubPrayers) { unsubPrayers(); unsubPrayers = null; }
+        if (unsubMembers) { unsubMembers(); unsubMembers = null; }
         for (const id of [...openComments.keys()]) closeComments(id);
+        if (els.membersDialog.open) els.membersDialog.close();
         prayers = [];
+        members = [];
+        roleByUid = {};
+        isAdmin = false;
         els.authSubmit.disabled = false;
         setMode(mode);
         showAuthView();

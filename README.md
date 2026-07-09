@@ -24,6 +24,11 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
 - **Mark answered** — authors can flag answered prayers (and reopen or delete).
 - Filter tabs: **All / Urgent / Answered / Mine**.
 - Live updates across everyone's devices (Firestore realtime).
+- **Open moderation.** Moderators wear a public **Moderator** badge (no hidden
+  authority), can delete any post/comment, and can revoke a member from an open
+  **Members** list that every member can see. Moderator status is granted only in
+  the Firebase console, so it can't be self-assigned. See *"Make yourself a
+  moderator"* in [SETUP.md](./SETUP.md).
 
 ## Setup
 

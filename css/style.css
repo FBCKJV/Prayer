@@ -207,4 +207,32 @@ body {
 .check input { width: 18px; height: 18px; accent-color: var(--gold); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
+/* Moderator badge (shown publicly next to moderators' names) */
+.mod-badge {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; margin-left: 6px;
+  background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-soft);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.comment-author .mod-badge { font-size: 0.62rem; }
+
+/* Members dialog */
+.members-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.members-note { color: var(--muted); font-size: 0.82rem; margin: -4px 0 4px; }
+.members-list { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
+.member {
+  display: flex; align-items: center; gap: 10px; padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.member:last-child { border-bottom: 0; }
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-weight: 600; display: flex; align-items: center; flex-wrap: wrap; }
+.member-sub { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-remove {
+  flex: 0 0 auto; background: none; border: 1px solid var(--line); color: var(--muted);
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.member-remove:hover { border-color: var(--danger); color: var(--danger); }
+.member-you { color: var(--muted); font-size: 0.78rem; flex: 0 0 auto; }
+
 [hidden] { display: none !important; }

@@ -91,11 +91,31 @@ If this lives in its own repo:
 4. (Optional) add a custom domain like `prayer.yourchurch.org` in that same Pages
    screen, then point a CNAME DNS record at it.
 
+## 8. Make yourself a moderator
+
+Moderators (admins) are shown publicly with a **Moderator** badge next to their
+name — oversight is out in the open, never hidden. A moderator can delete any
+prayer or comment, mark any request answered, and remove a member from the
+**Members** screen in the app.
+
+You can only become a moderator from the console (never from inside the app), so
+the role can't be quietly self-granted:
+
+1. First, **join the app normally** (sign up with the invite code) so your
+   `users/{uid}` document exists.
+2. Firebase console → **Firestore Database → Data → `users`** collection.
+3. Open your own document (match it by the `email` field).
+4. Click **Add field**: name `role`, type `string`, value `admin`. **Save**.
+5. Refresh the app — you'll see the **Moderator** badge and moderation controls.
+
+Repeat for anyone else you want to make a moderator.
+
 ### Rotating / removing members
 
-- **Change the invite code:** edit `config/invite → code` in Firestore.
-- **Remove someone:** Authentication → Users → delete their account, and delete
-  their `users/{uid}` doc in Firestore. They lose all access immediately.
-- **Make yourself able to delete any post:** the rules already let a request's
-  author delete it and delete comments on it. For broad moderation you can always
-  delete anything directly in the Firestore console.
+- **Change the invite code:** edit `config/invite → code` in Firestore. People
+  already in keep their access; only new signups need the new code.
+- **Remove someone (in the app):** open **Members** as a moderator and tap
+  **Remove**. That deletes their member record, cutting off all access at once.
+- **Remove someone completely:** also delete their login under
+  Authentication → Users in the console.
+- **Undo a moderator:** delete the `role` field on their `users/{uid}` doc.

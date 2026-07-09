@@ -10,6 +10,13 @@ rules_version = '2';
 //    get(), so the code itself is never exposed to the client.
 //  - config/invite is unreadable/unwritable from the app; edit it only in the
 //    Firebase console. Change its `code` field any time to rotate the invite.
+//
+// Moderators (admins):
+//  - A member becomes a moderator only by setting  role: "admin"  on their
+//    users/{uid} doc IN THE FIREBASE CONSOLE. It cannot be set from the app,
+//    so moderator status can never be self-granted or quietly escalated.
+//  - Moderators may delete/mark any prayer or comment and revoke a member's
+//    access. All of it is enforced here, not just hidden in the UI.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,6 +28,10 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
+    function isAdmin() {
+      return isMember()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
     function validInvite(code) {
       return code == get(/databases/$(database)/documents/config/invite).data.code;
     }
@@ -30,7 +41,8 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Member directory.
+    // Member directory. Every member can see who is in the group (openness by
+    // design); role is console-only so nobody can make themselves a moderator.
     match /users/{uid} {
       allow read: if isMember();
       allow create: if signedIn()
@@ -39,10 +51,11 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.keys().hasOnly(['name', 'email', 'inviteCode', 'createdAt']);
-      // Members may rename themselves; nothing else is editable.
+      // Members may rename themselves; nothing else (including role) is editable.
       allow update: if request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
-      allow delete: if false;
+      // A moderator can revoke a member (deleting the doc removes all access).
+      allow delete: if isAdmin();
     }
 
     // Prayer requests — one shared feed. No private/DM collections exist.
@@ -52,13 +65,14 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.body is string
         && request.resource.data.body.size() > 0;
-      // The author can edit/answer/delete their own request; any member may
-      // only touch the "I prayed" list or the comment counter.
+      // The author (or a moderator) can edit/answer/delete a request; any other
+      // member may only touch the "I prayed" list or the comment counter.
       allow update: if isMember() && (
         resource.data.uid == request.auth.uid
+        || isAdmin()
         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayedBy', 'commentCount'])
       );
-      allow delete: if isMember() && resource.data.uid == request.auth.uid;
+      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isAdmin());
 
       // Updates / encouragement on a request.
       match /comments/{cid} {
@@ -68,9 +82,12 @@ service cloud.firestore {
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0;
         allow update: if false;
-        allow delete: if isMember()
-          && (resource.data.uid == request.auth.uid
-              || get(/databases/$(database)/documents/prayers/$(id)).data.uid == request.auth.uid);
+        // Deletable by the comment's author, the prayer's author, or a moderator.
+        allow delete: if isMember() && (
+          resource.data.uid == request.auth.uid
+          || isAdmin()
+          || get(/databases/$(database)/documents/prayers/$(id)).data.uid == request.auth.uid
+        );
       }
     }
   }

@@ -74,6 +74,26 @@ export async function getProfile(uid) {
   return snap.exists() ? snap.data() : null;
 }
 
+/* ── Members / moderation ─────────────────────────────────────────────── */
+
+// Live member directory, oldest first. cb receives an array of member objects
+// ({ id, name, email, role, createdAt }). Every member may read this.
+export async function watchMembers(cb, onError) {
+  const { fs, db } = await init();
+  const q = fs.query(fs.collection(db, 'users'), fs.orderBy('createdAt', 'asc'));
+  return fs.onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, onError);
+}
+
+// Revoke a member's access (moderator only, enforced by rules). Removing the
+// member doc immediately cuts off all read/write; their login still exists but
+// grants nothing. Fully delete the login in the Firebase console if desired.
+export async function removeMember(uid) {
+  const { fs, db } = await init();
+  await fs.deleteDoc(fs.doc(db, 'users', uid));
+}
+
 /* ── Prayers ──────────────────────────────────────────────────────────── */
 
 // Live feed, newest first. cb receives an array of prayer objects.
@@ -149,6 +169,15 @@ export async function addComment(prayerId, body) {
   // Best-effort count bump for the collapsed card badge.
   try {
     await fs.updateDoc(fs.doc(db, 'prayers', prayerId), { commentCount: fs.increment(1) });
+  } catch (_) {}
+}
+
+// Delete a comment (by its author, the prayer's author, or a moderator).
+export async function deleteComment(prayerId, commentId) {
+  const { fs, db } = await init();
+  await fs.deleteDoc(fs.doc(db, 'prayers', prayerId, 'comments', commentId));
+  try {
+    await fs.updateDoc(fs.doc(db, 'prayers', prayerId), { commentCount: fs.increment(-1) });
   } catch (_) {}
 }
 
