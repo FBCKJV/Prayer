@@ -29,6 +29,8 @@ const els = {
   notifyBtn: $('#notifyBtn'),
   notifyDismiss: $('#notifyDismiss'),
   bellBtn: $('#bellBtn'),
+  menuBtn: $('#menuBtn'),
+  menu: $('#menu'),
   newPrayer: $('#newPrayerBtn'),
   feedList: $('#feedList'),
   feedEmpty: $('#feedEmpty'),
@@ -140,6 +142,7 @@ els.authForm.addEventListener('submit', async (e) => {
 });
 
 els.signOut.addEventListener('click', async () => {
+  closeMenu();
   try { await store.signOutUser(); } catch (_) {}
 });
 
@@ -464,7 +467,24 @@ function renderMembers() {
   }
 }
 
+/* ── header overflow menu ─────────────────────────────────────────────── */
+
+function closeMenu() {
+  els.menu.hidden = true;
+  els.menuBtn.setAttribute('aria-expanded', 'false');
+}
+els.menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = !els.menu.hidden;
+  els.menu.hidden = open;
+  els.menuBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+});
+document.addEventListener('click', (e) => {
+  if (!els.menu.hidden && !e.target.closest('.menu-wrap')) closeMenu();
+});
+
 els.membersBtn.addEventListener('click', () => {
+  closeMenu();
   renderMembers();
   if (typeof els.membersDialog.showModal === 'function') els.membersDialog.showModal();
 });

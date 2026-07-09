@@ -47,16 +47,39 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 12px 16px;
 }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; flex: 1 1 auto; }
 .brand-mark { width: 30px; height: 30px; flex: 0 0 auto; display: block; }
 .brand-lines { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-.brand-text { letter-spacing: 0.2px; }
+.brand-text { letter-spacing: 0.2px; white-space: nowrap; }
 .brand-church { font-size: 0.66rem; font-weight: 600; color: var(--muted); letter-spacing: .2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.topbar-right { display: flex; align-items: center; gap: 10px; }
-.who { color: var(--muted); font-size: 0.85rem; max-width: 32vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.who { color: var(--muted); font-size: 0.85rem; max-width: 22vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bell { padding: 8px 10px; line-height: 1; }
 .bell.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+
+/* Overflow menu (Members / Sign out) */
+.menu-wrap { position: relative; }
+.menu-btn { padding: 8px 12px; line-height: 1; font-size: 1.1rem; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  min-width: 168px; padding: 6px; display: flex; flex-direction: column;
+}
+.menu-item {
+  text-align: left; background: none; border: 0; font: inherit; color: var(--text);
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+}
+.menu-item:hover { background: var(--surface-2); }
+
+/* Phones: drop the least-essential header bits so the brand never crunches. */
+@media (max-width: 600px) {
+  .who { display: none; }                 /* your name still shows in Members */
+  .brand-church { display: none; }        /* keep just "Prayer Chain" + logo */
+  .topbar-inner { gap: 8px; padding: 10px 12px; }
+  .topbar-right { gap: 6px; }
+}
 
 /* Buttons */
 .btn {
