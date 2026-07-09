@@ -1,7 +1,7 @@
 // Prayer Chain service worker — offline app shell only.
 // Firebase / Firestore traffic (cross-origin) is never cached; it always
 // goes to the network so data stays live.
-const CACHE = 'prayer-chain-v2';
+const CACHE = 'prayer-chain-v3';
 const SHELL = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const SHELL = [
   './js/store.js',
   './js/firebase-config.js',
   './manifest.json',
+  './assets/logo-display.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/apple-touch-icon.png',

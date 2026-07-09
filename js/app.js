@@ -511,4 +511,44 @@ async function boot() {
   }
 }
 
+/* ── install ("Add to Home Screen") ───────────────────────────────────── */
+
+(function installPrompt() {
+  const bar = $('#installBar');
+  const iosHelp = $('#iosHelp');
+  const DISMISS = 'fbcprayer_install_dismissed';
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone || localStorage.getItem(DISMISS)) return; // already installed or dismissed
+
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    if (bar) bar.hidden = false;
+  });
+  window.addEventListener('appinstalled', () => { if (bar) bar.hidden = true; });
+
+  const installBtn = $('#installBtn');
+  if (installBtn) installBtn.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice.catch(() => {});
+    deferred = null;
+    if (bar) bar.hidden = true;
+  });
+  const dismiss = $('#installDismiss');
+  if (dismiss) dismiss.addEventListener('click', () => {
+    if (bar) bar.hidden = true;
+    localStorage.setItem(DISMISS, '1');
+  });
+
+  // iOS Safari has no beforeinstallprompt — show a short how-to instead.
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIOS && iosHelp) {
+    iosHelp.hidden = false;
+    const x = $('#iosDismiss');
+    if (x) x.addEventListener('click', () => { iosHelp.hidden = true; localStorage.setItem(DISMISS, '1'); });
+  }
+})();
+
 boot();

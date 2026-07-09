@@ -1,11 +1,17 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Prayer Chain</title>
-<meta name="description" content="Invite-only prayer requests and prayer chain for our church." />
-<meta name="theme-color" content="#1f1d38" />
+<title>FBC Prayer Chain</title>
+<meta name="description" content="Faith Baptist Church of Plymouth County — invite-only prayer requests and prayer chain." />
+<meta name="theme-color" content="#52a9f0" />
 <link rel="manifest" href="./manifest.json" />
-<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
 <link rel="icon" href="./assets/icons/favicon-32.png" sizes="32x32" />
+<link rel="icon" href="./assets/icons/icon-192.png" sizes="192x192" />
+<!-- iOS "Add to Home Screen" -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="FBC Prayer" />
+<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="./css/style.css" />
 
 <div id="app">
@@ -13,8 +19,11 @@
   <header class="topbar" hidden>
     <div class="topbar-inner">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">✝</span>
-        <span class="brand-text">Prayer Chain</span>
+        <img class="brand-mark" src="./assets/logo-display.png" alt="Faith Baptist Church of Plymouth County" />
+        <span class="brand-lines">
+          <span class="brand-text">Prayer Chain</span>
+          <span class="brand-church">Faith Baptist Church of Plymouth County</span>
+        </span>
       </div>
       <div class="topbar-right">
         <span id="who" class="who"></span>
@@ -34,9 +43,9 @@
   <!-- Auth view -->
   <main id="authView" class="auth" hidden>
     <div class="auth-card">
-      <div class="auth-logo" aria-hidden="true">✝</div>
+      <img class="auth-logo" src="./assets/logo-display.png" alt="Faith Baptist Church of Plymouth County" />
       <h1 class="auth-title">Prayer Chain</h1>
-      <p class="auth-sub">A private place for our church to share requests and pray for one another.</p>
+      <p class="auth-sub">Faith Baptist Church of Plymouth County — a private place for our church family to share requests and pray for one another.</p>
 
       <div class="tabs" role="tablist">
         <button class="tab is-active" id="tabSignIn" role="tab" type="button">Sign in</button>
@@ -71,6 +80,22 @@
 
   <!-- Feed view -->
   <main id="feedView" class="feed" hidden>
+    <!-- Android/desktop install prompt (shown only when installable) -->
+    <div id="installBar" class="install-bar" hidden>
+      <img src="./assets/logo-display.png" alt="" />
+      <div class="grow">
+        <div class="it">Add Prayer Chain to your home screen</div>
+        <div class="is">Open it like an app — one tap, no browser bar.</div>
+      </div>
+      <button id="installBtn" class="btn btn-primary" type="button">Add</button>
+      <button id="installDismiss" class="x" type="button" aria-label="Dismiss">×</button>
+    </div>
+    <!-- iOS install hint (Safari has no install button) -->
+    <div id="iosHelp" class="ios-help" hidden>
+      To install: tap the <b>Share</b> icon <span aria-hidden="true">􀈂</span> in Safari, then
+      <b>Add to Home Screen</b>. <button id="iosDismiss" class="x" type="button" aria-label="Dismiss">×</button>
+    </div>
+
     <div class="feed-tabs" role="tablist" aria-label="Filter prayers">
       <button class="chip is-active" data-filter="all" type="button">All</button>
       <button class="chip" data-filter="urgent" type="button">Urgent</button>

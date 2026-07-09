@@ -1,38 +1,25 @@
-/* Prayer Chain — mobile-first, reverent dark theme with a light-mode fallback. */
+/* FBC Prayer Chain — mobile-first, warm sky-blue light theme.
+   Always light (no dark-mode switch, by request) — church members on phones in
+   dark mode still get the same bright, welcoming look. --gold/--gold-soft keep
+   their names but now hold the brand blues. */
 :root {
-  --bg: #16152a;
-  --bg-2: #1f1d38;
-  --surface: #262445;
-  --surface-2: #2f2c54;
-  --line: #3a376a;
-  --text: #ece9f5;
-  --muted: #a6a2c7;
-  --gold: #d8b26a;
-  --gold-soft: #e7cf9c;
-  --danger: #e0736f;
-  --danger-bg: #3a2436;
-  --answered: #7fc7a0;
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: light;
+  --bg: #eaf3fb;         /* soft sky background          */
+  --bg-2: #dcebf8;       /* insets, pills, chips          */
+  --surface: #ffffff;    /* cards, dialogs                */
+  --surface-2: #f2f8fd;
+  --line: #cfe1f2;       /* hairlines / borders           */
+  --text: #17324a;       /* deep slate-blue ink           */
+  --muted: #5f7891;      /* secondary text                */
+  --gold: #2e86d6;       /* BRAND blue (buttons, accents) */
+  --gold-soft: #1f6fb2;  /* deeper blue (hover, links)    */
+  --danger: #e0573a;     /* warm coral for urgent         */
+  --danger-bg: #fdece5;
+  --answered: #2e9e6b;   /* fresh green                   */
+  --shadow: 0 6px 22px rgba(31, 111, 178, 0.14);
   --radius: 16px;
   --radius-sm: 10px;
   --maxw: 640px;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f1ea;
-    --bg-2: #efeadf;
-    --surface: #ffffff;
-    --surface-2: #f6f2e9;
-    --line: #e2dccc;
-    --text: #24222e;
-    --muted: #6c6880;
-    --gold: #b7893a;
-    --gold-soft: #9c7430;
-    --danger: #c0433f;
-    --danger-bg: #f7e6e4;
-    --answered: #2e8f5f;
-    --shadow: 0 6px 24px rgba(60, 50, 20, 0.12);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -60,9 +47,12 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 12px 16px;
 }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; }
-.brand-mark { color: var(--gold); font-size: 1.25rem; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.brand-mark { width: 30px; height: 30px; flex: 0 0 auto; display: block; }
+.brand-lines { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand-text { letter-spacing: 0.2px; }
+.brand-church { font-size: 0.66rem; font-weight: 600; color: var(--muted); letter-spacing: .2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .who { color: var(--muted); font-size: 0.85rem; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -73,7 +63,7 @@ body {
   padding: 10px 16px; transition: transform .05s ease, background .15s ease, border-color .15s ease;
 }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--gold); color: #241c07; }
+.btn-primary { background: var(--gold); color: #ffffff; }
 .btn-primary:hover { background: var(--gold-soft); }
 .btn-ghost { background: transparent; color: var(--muted); border-color: var(--line); }
 .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
@@ -98,9 +88,7 @@ body {
   border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 24px;
 }
 .auth-logo {
-  width: 58px; height: 58px; margin: 0 auto 12px; display: grid; place-items: center;
-  background: var(--bg-2); border-radius: 50%; color: var(--gold); font-size: 1.6rem;
-  border: 1px solid var(--line);
+  width: 84px; height: 84px; margin: 0 auto 14px; display: block;
 }
 .auth-title { text-align: center; margin: 0 0 4px; font-size: 1.5rem; }
 .auth-sub { text-align: center; color: var(--muted); margin: 0 0 20px; font-size: 0.92rem; }
@@ -139,7 +127,7 @@ body {
   color: var(--muted); font: inherit; font-weight: 600; font-size: 0.85rem;
   padding: 7px 14px; border-radius: 999px; cursor: pointer;
 }
-.chip.is-active { background: var(--gold); color: #241c07; border-color: var(--gold); }
+.chip.is-active { background: var(--gold); color: #ffffff; border-color: var(--gold); }
 
 .feed-list { display: flex; flex-direction: column; gap: 14px; }
 
@@ -234,5 +222,24 @@ body {
 }
 .member-remove:hover { border-color: var(--danger); color: var(--danger); }
 .member-you { color: var(--muted); font-size: 0.78rem; flex: 0 0 auto; }
+
+/* Install ("Add to Home Screen") prompt */
+.install-bar {
+  max-width: var(--maxw); margin: 0 auto 14px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
+}
+.install-bar img { width: 40px; height: 40px; flex: 0 0 auto; }
+.install-bar .grow { flex: 1; min-width: 0; }
+.install-bar .it { font-weight: 700; font-size: 0.92rem; }
+.install-bar .is { color: var(--muted); font-size: 0.8rem; }
+.install-bar .x { background: none; border: 0; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 6px; line-height: 1; }
+.ios-help {
+  max-width: var(--maxw); margin: 0 auto 14px; padding: 12px 14px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: 0.88rem; color: var(--text);
+}
+.ios-help b { color: var(--gold-soft); }
 
 [hidden] { display: none !important; }
