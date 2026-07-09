@@ -28,6 +28,7 @@ const els = {
   notifyBar: $('#notifyBar'),
   notifyBtn: $('#notifyBtn'),
   notifyDismiss: $('#notifyDismiss'),
+  bellBtn: $('#bellBtn'),
   newPrayer: $('#newPrayerBtn'),
   feedList: $('#feedList'),
   feedEmpty: $('#feedEmpty'),
@@ -52,6 +53,7 @@ let members = [];             // live member directory
 let roleByUid = {};           // uid -> role ('admin' for moderators)
 let isAdmin = false;          // is the signed-in user a moderator?
 const openComments = new Map(); // prayerId -> { unsub, listEl }
+const expandedCards = new Set(); // prayerIds currently expanded
 
 function isModerator(uid) {
   return roleByUid[uid] === 'admin';
@@ -192,34 +194,59 @@ function el(tag, cls, text) {
   return n;
 }
 
+function snippet(text, n) {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
+}
+
 function buildCard(p) {
   const uid = currentUser && currentUser.uid;
   const mine = p.uid === uid;
   const prayed = Array.isArray(p.prayedBy) && p.prayedBy.includes(uid);
   const count = Array.isArray(p.prayedBy) ? p.prayedBy.length : 0;
+  const isOpen = expandedCards.has(p.id);
 
   const card = el('article', 'card');
   card.dataset.id = p.id;
   if (p.urgent && !p.answered) card.classList.add('is-urgent');
   if (p.answered) card.classList.add('is-answered');
+  if (isOpen) card.classList.add('expanded');
 
-  // head tags
+  // ── collapsed summary (always visible; tap to expand) ──
+  const summary = el('button', 'card-summary');
+  summary.type = 'button';
+  summary.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
   const head = el('div', 'card-head');
   head.appendChild(el('span', 'tag cat', p.category || 'General'));
   if (p.urgent && !p.answered) head.appendChild(el('span', 'tag urgent', 'Urgent'));
   if (p.answered) head.appendChild(el('span', 'tag answered', '✓ Answered'));
-  card.appendChild(head);
+  summary.appendChild(head);
 
-  if (p.title) card.appendChild(el('h3', 'card-title', p.title));
-  card.appendChild(el('p', 'card-body', p.body || ''));
-
-  const meta = el('div', 'card-meta');
+  const line = el('div', 'card-line');
+  const label = (p.title && p.title.trim()) ? p.title.trim() : snippet(p.body, 60);
+  line.appendChild(el('span', 'card-label', label));
+  const who = el('span', 'card-who');
+  who.appendChild(document.createTextNode(' — '));
   const author = el('span', null, p.author || 'A member');
   if (isModerator(p.uid)) author.appendChild(moderatorBadge());
-  meta.appendChild(author);
-  meta.appendChild(el('span', null, '·'));
-  meta.appendChild(el('span', null, timeAgo(p.createdAt)));
-  card.appendChild(meta);
+  who.appendChild(author);
+  line.appendChild(who);
+  summary.appendChild(line);
+
+  const sub = el('div', 'card-subline');
+  sub.appendChild(el('span', null, timeAgo(p.createdAt)));
+  if (count) sub.appendChild(el('span', null, `· 🙏 ${count}`));
+  if (p.commentCount) sub.appendChild(el('span', null, `· 💬 ${p.commentCount}`));
+  summary.appendChild(sub);
+
+  summary.appendChild(el('span', 'chevron', '▾'));
+  summary.addEventListener('click', () => toggleExpand(p.id, card, summary));
+  card.appendChild(summary);
+
+  // ── expanded detail ──
+  const detail = el('div', 'card-detail');
+  detail.appendChild(el('p', 'card-body', p.body || ''));
 
   // actions
   const actions = el('div', 'card-actions');
@@ -264,7 +291,7 @@ function buildCard(p) {
     });
     actions.appendChild(del);
   }
-  card.appendChild(actions);
+  detail.appendChild(actions);
 
   // comments container
   const comments = el('div', 'comments');
@@ -289,9 +316,17 @@ function buildCard(p) {
     catch (_) { cInput.value = text; }
   });
   comments.appendChild(cForm);
-  card.appendChild(comments);
+  detail.appendChild(comments);
 
+  card.appendChild(detail);
   return card;
+}
+
+function toggleExpand(id, card, summary) {
+  const open = expandedCards.has(id);
+  if (open) { expandedCards.delete(id); card.classList.remove('expanded'); }
+  else { expandedCards.add(id); card.classList.add('expanded'); }
+  summary.setAttribute('aria-expanded', open ? 'false' : 'true');
 }
 
 async function onPray(p, prayed, btn) {
@@ -439,19 +474,54 @@ els.membersClose.addEventListener('click', () => els.membersDialog.close());
 
 const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed';
 
+function notifGranted() {
+  return typeof Notification !== 'undefined' && Notification.permission === 'granted';
+}
+function notifBlocked() {
+  return typeof Notification !== 'undefined' && Notification.permission === 'denied';
+}
+function updateBell() {
+  if (!notify.pushConfigured) { els.bellBtn.hidden = true; return; }
+  els.bellBtn.hidden = false;
+  const on = notifGranted();
+  els.bellBtn.classList.toggle('on', on);
+  els.bellBtn.title = on ? 'Prayer alerts are on' : 'Turn on prayer alerts';
+}
+
 async function setupNotifications(uid) {
   if (!notify.pushConfigured) return;
   notify.pushLogin(uid); // tie this browser's subscription to the member
-  if (localStorage.getItem(NOTIFY_DISMISS)) return;
+  updateBell();
+  if (localStorage.getItem(NOTIFY_DISMISS) || notifGranted()) return;
   try {
     if (await notify.pushNeedsPermission()) els.notifyBar.hidden = false;
   } catch (_) {}
 }
 
+// The bell is the always-available way to turn alerts on (the bar is just a
+// one-time nudge). Works even after the bar was dismissed.
+els.bellBtn.addEventListener('click', async () => {
+  if (notifGranted()) {
+    alert('Prayer alerts are already on for this device. To turn them off, use your browser/phone notification settings for this site.');
+    return;
+  }
+  if (notifBlocked()) {
+    alert('Notifications are blocked for this site.\n\nTo turn them on:\n• Chrome (Android): tap the ⋮ menu → Site settings → Notifications → Allow. Or tap the 🔒/ⓘ icon left of the address bar → Permissions → Notifications → Allow.\n• Then come back and tap the bell again.');
+    return;
+  }
+  els.bellBtn.disabled = true;
+  try { await notify.promptEnable(); } catch (_) {}
+  els.bellBtn.disabled = false;
+  els.notifyBar.hidden = true;
+  updateBell();
+});
+
 els.notifyBtn.addEventListener('click', async () => {
   els.notifyBtn.disabled = true;
   try { await notify.promptEnable(); } catch (_) {}
+  els.notifyBtn.disabled = false;
   els.notifyBar.hidden = true;
+  updateBell();
 });
 els.notifyDismiss.addEventListener('click', () => {
   els.notifyBar.hidden = true;
@@ -529,6 +599,7 @@ async function boot() {
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
         els.notifyBar.hidden = true;
+        els.bellBtn.hidden = true;
         notify.pushLogout();
         prayers = [];
         members = [];
