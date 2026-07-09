@@ -1,5 +1,6 @@
 // app.js — UI controller. Wires the DOM to store.js.
 import * as store from './store.js';
+import * as notify from './notify.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -24,6 +25,9 @@ const els = {
   membersClose: $('#membersClose'),
   membersList: $('#membersList'),
   membersNote: $('#membersNote'),
+  notifyBar: $('#notifyBar'),
+  notifyBtn: $('#notifyBtn'),
+  notifyDismiss: $('#notifyDismiss'),
   newPrayer: $('#newPrayerBtn'),
   feedList: $('#feedList'),
   feedEmpty: $('#feedEmpty'),
@@ -240,7 +244,11 @@ function buildCard(p) {
     ans.type = 'button';
     ans.textContent = p.answered ? 'Reopen' : 'Mark answered';
     ans.addEventListener('click', async () => {
-      try { await store.setAnswered(p.id, !p.answered); } catch (_) {}
+      const marking = !p.answered;
+      try {
+        await store.setAnswered(p.id, marking);
+        if (marking) notify.sendPush('answered'); // only on answer, not reopen
+      } catch (_) {}
     });
     actions.appendChild(ans);
 
@@ -368,6 +376,7 @@ els.composerForm.addEventListener('submit', async (e) => {
       urgent: els.cUrgent.checked,
     });
     els.composer.close();
+    notify.sendPush('new_prayer'); // fire-and-forget; Worker notifies the chain
   } catch (err) {
     showError(els.composerError, 'Could not post. ' + friendlyAuthError(err));
   } finally {
@@ -426,6 +435,29 @@ els.membersBtn.addEventListener('click', () => {
 });
 els.membersClose.addEventListener('click', () => els.membersDialog.close());
 
+/* ── notifications opt-in ─────────────────────────────────────────────── */
+
+const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed';
+
+async function setupNotifications(uid) {
+  if (!notify.pushConfigured) return;
+  notify.pushLogin(uid); // tie this browser's subscription to the member
+  if (localStorage.getItem(NOTIFY_DISMISS)) return;
+  try {
+    if (await notify.pushNeedsPermission()) els.notifyBar.hidden = false;
+  } catch (_) {}
+}
+
+els.notifyBtn.addEventListener('click', async () => {
+  els.notifyBtn.disabled = true;
+  try { await notify.promptEnable(); } catch (_) {}
+  els.notifyBar.hidden = true;
+});
+els.notifyDismiss.addEventListener('click', () => {
+  els.notifyBar.hidden = true;
+  localStorage.setItem(NOTIFY_DISMISS, '1');
+});
+
 /* ── view switching ───────────────────────────────────────────────────── */
 
 function showAuthView() {
@@ -453,6 +485,7 @@ async function showFeedView() {
   if (currentUser !== user) return; // signed out / changed while waiting
   els.who.textContent = (prof && prof.name) || user.email || '';
   isAdmin = !!(prof && prof.role === 'admin');
+  setupNotifications(user.uid);
   if (!unsubPrayers) {
     unsubPrayers = await store.watchPrayers(
       (items) => { prayers = items; renderFeed(); },
@@ -495,6 +528,8 @@ async function boot() {
         if (unsubMembers) { unsubMembers(); unsubMembers = null; }
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
+        els.notifyBar.hidden = true;
+        notify.pushLogout();
         prayers = [];
         members = [];
         roleByUid = {};

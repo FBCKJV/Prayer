@@ -1,7 +1,15 @@
-// Prayer Chain service worker — offline app shell only.
+// Prayer Chain service worker — offline app shell + OneSignal web push.
 // Firebase / Firestore traffic (cross-origin) is never cached; it always
 // goes to the network so data stays live.
-const CACHE = 'prayer-chain-v3';
+
+// OneSignal push support. Wrapped so that if the CDN is unreachable on an
+// offline restart, the app's own caching below still works. Harmless until
+// OneSignal is configured (see SETUP-NOTIFICATIONS.md).
+try {
+  importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
+} catch (e) { /* offline or not set up yet — ignore */ }
+
+const CACHE = 'prayer-chain-v4';
 const SHELL = [
   './',
   './index.html',
@@ -9,6 +17,8 @@ const SHELL = [
   './js/app.js',
   './js/store.js',
   './js/firebase-config.js',
+  './js/notify.js',
+  './js/notify-config.js',
   './manifest.json',
   './assets/logo-display.png',
   './assets/icons/icon-192.png',

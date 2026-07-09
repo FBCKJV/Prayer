@@ -96,6 +96,17 @@
       <b>Add to Home Screen</b>. <button id="iosDismiss" class="x" type="button" aria-label="Dismiss">×</button>
     </div>
 
+    <!-- Prayer-alert opt-in (shown when notifications are set up but not yet allowed) -->
+    <div id="notifyBar" class="install-bar" hidden>
+      <span aria-hidden="true" style="font-size:1.6rem">🔔</span>
+      <div class="grow">
+        <div class="it">Turn on prayer alerts</div>
+        <div class="is">Get notified of new requests and answered prayers. No alerts for comments.</div>
+      </div>
+      <button id="notifyBtn" class="btn btn-primary" type="button">Allow</button>
+      <button id="notifyDismiss" class="x" type="button" aria-label="Dismiss">×</button>
+    </div>
+
     <div class="feed-tabs" role="tablist" aria-label="Filter prayers">
       <button class="chip is-active" data-filter="all" type="button">All</button>
       <button class="chip" data-filter="urgent" type="button">Urgent</button>

@@ -29,6 +29,10 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
   **Members** list that every member can see. Moderator status is granted only in
   the Firebase console, so it can't be self-assigned. See *"Make yourself a
   moderator"* in [SETUP.md](./SETUP.md).
+- **Push notifications** for new prayer requests and answered prayers (never for
+  comments). Privacy-first: alerts name *who* posted, not the request text.
+  Optional, off until configured — see [SETUP-NOTIFICATIONS.md](./SETUP-NOTIFICATIONS.md).
+  Uses OneSignal + a small Cloudflare Worker (both free, no server/billing).
 
 ## Setup
 

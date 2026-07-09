@@ -74,6 +74,14 @@ export async function getProfile(uid) {
   return snap.exists() ? snap.data() : null;
 }
 
+// A short-lived Firebase ID token for the signed-in user, used to prove
+// membership to the push-notification Worker.
+export async function getIdToken() {
+  const { authInst } = await init();
+  const u = authInst.currentUser;
+  return u ? u.getIdToken() : null;
+}
+
 /* ── Members / moderation ─────────────────────────────────────────────── */
 
 // Live member directory, oldest first. cb receives an array of member objects
