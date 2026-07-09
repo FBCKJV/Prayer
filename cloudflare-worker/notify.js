@@ -58,25 +58,37 @@ export default {
       ? { heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }
       : { heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` };
 
-    const osRes = await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${env.ONESIGNAL_REST_API_KEY}`,
-      },
-      body: JSON.stringify({
-        app_id: env.ONESIGNAL_APP_ID,
-        included_segments: ['Subscribed Users'],
-        headings: { en: copy.heading },
-        contents: { en: copy.content },
-        url: url || 'https://prayer.fbckjv.app',
-        web_push_topic: type, // collapse duplicates of the same kind
-      }),
-    });
-    const osData = await osRes.json().catch(() => ({}));
+    const notification = {
+      app_id: env.ONESIGNAL_APP_ID,
+      included_segments: ['Subscribed Users'],
+      headings: { en: copy.heading },
+      contents: { en: copy.content },
+      url: url || 'https://prayer.fbckjv.app',
+      web_push_topic: type, // collapse duplicates of the same kind
+    };
+    const { res: osRes, data: osData } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
     return json({ ok: osRes.ok, onesignal: osData }, osRes.ok ? 200 : 502, cors);
   },
 };
+
+// OneSignal changed its auth header format: newer keys use "Key <key>", older
+// REST API keys use "Basic <key>". Try the modern one first, fall back to the
+// legacy one on an auth error, so either kind of key just works.
+async function sendOneSignal(key, notification) {
+  const url = 'https://onesignal.com/api/v1/notifications';
+  const body = JSON.stringify(notification);
+  let res, data;
+  for (const scheme of ['Key', 'Basic']) {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `${scheme} ${key}` },
+      body,
+    });
+    data = await res.json().catch(() => ({}));
+    if (res.status !== 401 && res.status !== 403) break; // auth accepted (or a non-auth error)
+  }
+  return { res, data };
+}
 
 function uidFromJwt(token) {
   try {
