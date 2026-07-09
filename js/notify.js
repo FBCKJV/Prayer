@@ -1,7 +1,7 @@
 // notify.js — web push via OneSignal (subscribe/deliver) + our Cloudflare
 // Worker (send). Everything here is a safe no-op until notify-config.js is
 // filled in, so the app runs fine before notifications are set up.
-import { ONESIGNAL_APP_ID, NOTIFY_ENDPOINT } from './notify-config.js';
+import { ONESIGNAL_APP_ID, ONESIGNAL_SAFARI_WEB_ID, NOTIFY_ENDPOINT } from './notify-config.js';
 import { getIdToken } from './store.js';
 
 export const pushConfigured = !!ONESIGNAL_APP_ID;
@@ -23,6 +23,7 @@ function initOneSignal() {
       try {
         await OneSignal.init({
           appId: ONESIGNAL_APP_ID,
+          safari_web_id: ONESIGNAL_SAFARI_WEB_ID || undefined,
           serviceWorkerParam: { scope: '/' },
           serviceWorkerPath: 'sw.js', // reuse our own service worker
         });
