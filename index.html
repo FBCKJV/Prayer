@@ -1,0 +1,131 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Prayer Chain</title>
+<meta name="description" content="Invite-only prayer requests and prayer chain for our church." />
+<meta name="theme-color" content="#1f1d38" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
+<link rel="icon" href="./assets/icons/favicon-32.png" sizes="32x32" />
+<link rel="stylesheet" href="./css/style.css" />
+
+<div id="app">
+  <!-- Header -->
+  <header class="topbar" hidden>
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">✝</span>
+        <span class="brand-text">Prayer Chain</span>
+      </div>
+      <div class="topbar-right">
+        <span id="who" class="who"></span>
+        <button id="signOutBtn" class="btn btn-ghost" type="button">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Setup-needed banner -->
+  <div id="setupBanner" class="banner" hidden>
+    <strong>Almost there.</strong> This app isn't connected to Firebase yet.
+    Open <code>js/firebase-config.js</code> and paste your project's config.
+    Step-by-step guide: <code>SETUP.md</code>.
+  </div>
+
+  <!-- Auth view -->
+  <main id="authView" class="auth" hidden>
+    <div class="auth-card">
+      <div class="auth-logo" aria-hidden="true">✝</div>
+      <h1 class="auth-title">Prayer Chain</h1>
+      <p class="auth-sub">A private place for our church to share requests and pray for one another.</p>
+
+      <div class="tabs" role="tablist">
+        <button class="tab is-active" id="tabSignIn" role="tab" type="button">Sign in</button>
+        <button class="tab" id="tabSignUp" role="tab" type="button">Join</button>
+      </div>
+
+      <form id="authForm" class="auth-form" autocomplete="on">
+        <label class="field signup-only" hidden>
+          <span>Your name</span>
+          <input id="nameInput" type="text" autocomplete="name" placeholder="First &amp; last name" />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input id="emailInput" type="email" autocomplete="email" required placeholder="you@email.com" />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="passwordInput" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters" />
+        </label>
+        <label class="field signup-only" hidden>
+          <span>Invite code</span>
+          <input id="inviteInput" type="text" autocomplete="off" placeholder="Code from your church" />
+          <small class="hint">Ask a leader for the current invite code. This keeps the group private.</small>
+        </label>
+
+        <p id="authError" class="form-error" role="alert" hidden></p>
+        <button id="authSubmit" class="btn btn-primary btn-block" type="submit">Sign in</button>
+      </form>
+    </div>
+    <p class="footer-note">No direct messages. Everything shared here goes to the whole prayer chain.</p>
+  </main>
+
+  <!-- Feed view -->
+  <main id="feedView" class="feed" hidden>
+    <div class="feed-tabs" role="tablist" aria-label="Filter prayers">
+      <button class="chip is-active" data-filter="all" type="button">All</button>
+      <button class="chip" data-filter="urgent" type="button">Urgent</button>
+      <button class="chip" data-filter="answered" type="button">Answered</button>
+      <button class="chip" data-filter="mine" type="button">Mine</button>
+    </div>
+
+    <button id="newPrayerBtn" class="btn btn-primary btn-new" type="button">
+      <span aria-hidden="true">＋</span> Share a prayer request
+    </button>
+
+    <div id="feedList" class="feed-list" aria-live="polite"></div>
+    <div id="feedEmpty" class="empty" hidden></div>
+  </main>
+</div>
+
+<!-- Composer dialog -->
+<dialog id="composer" class="dialog">
+  <form method="dialog" class="dialog-form" id="composerForm">
+    <h2 class="dialog-title">Share a prayer request</h2>
+    <label class="field">
+      <span>Title <small>(optional)</small></span>
+      <input id="cTitle" type="text" maxlength="80" placeholder="Short summary" />
+    </label>
+    <label class="field">
+      <span>Request</span>
+      <textarea id="cBody" rows="5" maxlength="2000" required placeholder="What can the chain pray for?"></textarea>
+    </label>
+    <label class="field">
+      <span>Category</span>
+      <select id="cCategory">
+        <option value="General">General</option>
+        <option value="Healing">Healing</option>
+        <option value="Family">Family</option>
+        <option value="Salvation">Salvation</option>
+        <option value="Grief">Grief / Loss</option>
+        <option value="Provision">Provision</option>
+        <option value="Guidance">Guidance</option>
+        <option value="Thanksgiving">Praise / Thanksgiving</option>
+      </select>
+    </label>
+    <label class="check">
+      <input id="cUrgent" type="checkbox" />
+      <span>Mark as urgent</span>
+    </label>
+    <p id="composerError" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="composerCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="composerSubmit">Post to the chain</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="./js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+</script>

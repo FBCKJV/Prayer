@@ -1,0 +1,210 @@
+/* Prayer Chain — mobile-first, reverent dark theme with a light-mode fallback. */
+:root {
+  --bg: #16152a;
+  --bg-2: #1f1d38;
+  --surface: #262445;
+  --surface-2: #2f2c54;
+  --line: #3a376a;
+  --text: #ece9f5;
+  --muted: #a6a2c7;
+  --gold: #d8b26a;
+  --gold-soft: #e7cf9c;
+  --danger: #e0736f;
+  --danger-bg: #3a2436;
+  --answered: #7fc7a0;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --maxw: 640px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f1ea;
+    --bg-2: #efeadf;
+    --surface: #ffffff;
+    --surface-2: #f6f2e9;
+    --line: #e2dccc;
+    --text: #24222e;
+    --muted: #6c6880;
+    --gold: #b7893a;
+    --gold-soft: #9c7430;
+    --danger: #c0433f;
+    --danger-bg: #f7e6e4;
+    --answered: #2e8f5f;
+    --shadow: 0 6px 24px rgba(60, 50, 20, 0.12);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+#app { min-height: 100dvh; }
+
+/* Top bar */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding-top: env(safe-area-inset-top);
+}
+.topbar-inner {
+  max-width: var(--maxw); margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 16px;
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; }
+.brand-mark { color: var(--gold); font-size: 1.25rem; }
+.brand-text { letter-spacing: 0.2px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.who { color: var(--muted); font-size: 0.85rem; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Buttons */
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  border-radius: var(--radius-sm); border: 1px solid transparent;
+  padding: 10px 16px; transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--gold); color: #241c07; }
+.btn-primary:hover { background: var(--gold-soft); }
+.btn-ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+.btn-block { width: 100%; }
+.btn-new { display: block; width: 100%; max-width: var(--maxw); margin: 0 auto 14px; }
+
+/* Banner */
+.banner {
+  max-width: var(--maxw); margin: 14px auto; padding: 12px 16px;
+  background: var(--danger-bg); border: 1px solid var(--danger);
+  border-radius: var(--radius-sm); font-size: 0.9rem;
+}
+.banner code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 5px; }
+
+/* Auth */
+.auth {
+  max-width: 420px; margin: 0 auto; padding: 8vh 20px 40px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.auth-card {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 24px;
+}
+.auth-logo {
+  width: 58px; height: 58px; margin: 0 auto 12px; display: grid; place-items: center;
+  background: var(--bg-2); border-radius: 50%; color: var(--gold); font-size: 1.6rem;
+  border: 1px solid var(--line);
+}
+.auth-title { text-align: center; margin: 0 0 4px; font-size: 1.5rem; }
+.auth-sub { text-align: center; color: var(--muted); margin: 0 0 20px; font-size: 0.92rem; }
+.tabs { display: flex; background: var(--bg-2); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 18px; }
+.tab {
+  flex: 1; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; padding: 8px; border-radius: 8px; cursor: pointer;
+}
+.tab.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.field span small { color: var(--muted); font-weight: 400; }
+.field input, .field textarea, .field select {
+  font: inherit; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 11px 12px; width: 100%;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+.field textarea { resize: vertical; }
+.hint { color: var(--muted); font-weight: 400; }
+.form-error {
+  margin: 0; padding: 10px 12px; background: var(--danger-bg);
+  border: 1px solid var(--danger); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 0.85rem;
+}
+.footer-note { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 18px; max-width: 340px; }
+
+/* Feed */
+.feed { max-width: var(--maxw); margin: 0 auto; padding: 16px 16px 48px; }
+.feed-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; scrollbar-width: none; }
+.feed-tabs::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface);
+  color: var(--muted); font: inherit; font-weight: 600; font-size: 0.85rem;
+  padding: 7px 14px; border-radius: 999px; cursor: pointer;
+}
+.chip.is-active { background: var(--gold); color: #241c07; border-color: var(--gold); }
+
+.feed-list { display: flex; flex-direction: column; gap: 14px; }
+
+/* Prayer card */
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+}
+.card.is-urgent { border-color: var(--danger); }
+.card.is-answered { border-color: var(--answered); }
+.card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.tag {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; background: var(--bg-2); color: var(--muted);
+}
+.tag.cat { color: var(--gold-soft); }
+.tag.urgent { background: var(--danger-bg); color: var(--danger); }
+.tag.answered { background: color-mix(in srgb, var(--answered) 18%, transparent); color: var(--answered); }
+.card-title { font-size: 1.05rem; font-weight: 700; margin: 2px 0 6px; }
+.card-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-meta { color: var(--muted); font-size: 0.8rem; margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.card-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.pray-btn {
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line);
+  background: var(--bg-2); color: var(--text); font: inherit; font-weight: 600;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+}
+.pray-btn.is-on { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); color: var(--gold-soft); }
+.pray-count { color: var(--muted); font-weight: 600; }
+.link-btn { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 8px 4px; }
+.link-btn:hover { color: var(--text); }
+.link-btn.danger:hover { color: var(--danger); }
+.spacer { flex: 1; }
+
+/* Comments */
+.comments { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; display: none; }
+.comments.open { display: block; }
+.comment { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.comment:last-of-type { border-bottom: 0; }
+.comment-author { font-weight: 600; font-size: 0.85rem; }
+.comment-time { color: var(--muted); font-size: 0.75rem; margin-left: 6px; }
+.comment-body { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+.comment-form { display: flex; gap: 8px; margin-top: 12px; }
+.comment-form input {
+  flex: 1; font: inherit; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px;
+}
+.comment-form input:focus { outline: none; border-color: var(--gold); }
+
+/* Empty / loading */
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
+.skeleton { height: 120px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Dialog */
+.dialog {
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 0;
+  background: var(--surface); color: var(--text); width: min(92vw, 460px); box-shadow: var(--shadow);
+}
+.dialog::backdrop { background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+.dialog-form { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.dialog-title { margin: 0; font-size: 1.2rem; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; }
+.check input { width: 18px; height: 18px; accent-color: var(--gold); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+[hidden] { display: none !important; }
