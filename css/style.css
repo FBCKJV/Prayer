@@ -266,6 +266,28 @@ body {
 .member-remove:hover { border-color: var(--danger); color: var(--danger); }
 .member-you { color: var(--muted); font-size: 0.78rem; flex: 0 0 auto; }
 
+/* Weekly Prayer List */
+.list-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.list-title { flex: 1; font-size: 1.15rem; margin: 0; }
+.list-head-actions { display: flex; gap: 8px; }
+.list-section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 14px; }
+.list-section h3 {
+  margin: 0 0 8px; font-size: 0.95rem; color: var(--gold-soft);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.list-section ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.list-section li { overflow-wrap: anywhere; }
+.list-section .empty-note { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.list-meta { color: var(--muted); font-size: 0.78rem; text-align: center; margin: 6px 0 20px; }
+/* Editor */
+.list-editor .ed-field { margin-bottom: 14px; }
+.list-editor label { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: var(--gold-soft); }
+.list-editor textarea {
+  width: 100%; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; resize: vertical;
+}
+.list-editor .ed-hint { color: var(--muted); font-size: 0.78rem; margin: 4px 0 0; }
+
 /* Install ("Add to Home Screen") prompt */
 .install-bar {
   max-width: var(--maxw); margin: 0 auto 14px;

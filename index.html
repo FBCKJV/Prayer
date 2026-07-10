@@ -31,6 +31,7 @@
         <div class="menu-wrap">
           <button id="menuBtn" class="btn btn-ghost menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
           <div id="menu" class="menu" role="menu" hidden>
+            <button id="listBtn" class="menu-item" type="button" role="menuitem">📋 Weekly Prayer List</button>
             <button id="membersBtn" class="menu-item" type="button" role="menuitem">👥 Members</button>
             <button id="signOutBtn" class="menu-item" type="button" role="menuitem">↩ Sign out</button>
           </div>
@@ -126,6 +127,23 @@
 
     <div id="feedList" class="feed-list" aria-live="polite"></div>
     <div id="feedEmpty" class="empty" hidden></div>
+  </main>
+
+  <!-- Weekly Prayer List view -->
+  <main id="listView" class="feed" hidden>
+    <div class="list-head">
+      <button id="listBack" class="btn btn-ghost" type="button">← Feed</button>
+      <h2 class="list-title">Weekly Prayer List</h2>
+      <div class="list-head-actions">
+        <button id="listEdit" class="btn btn-primary" type="button" hidden>Edit</button>
+        <button id="listSave" class="btn btn-primary" type="button" hidden>Save</button>
+        <button id="listCancel" class="btn btn-ghost" type="button" hidden>Cancel</button>
+      </div>
+    </div>
+    <p id="listError" class="form-error" role="alert" hidden></p>
+    <div id="listBody" class="list-body"></div>
+    <div id="listEditor" class="list-editor" hidden></div>
+    <p id="listMeta" class="list-meta"></p>
   </main>
 </div>
 

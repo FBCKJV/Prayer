@@ -102,6 +102,29 @@ export async function removeMember(uid) {
   await fs.deleteDoc(fs.doc(db, 'users', uid));
 }
 
+/* ── Weekly prayer list (standing, moderator-edited) ──────────────────── */
+
+// Live-watch the standing list document. cb receives the doc data (or null
+// if it hasn't been saved yet — the caller falls back to the seed).
+export async function watchPrayerList(cb, onError) {
+  const { fs, db } = await init();
+  return fs.onSnapshot(fs.doc(db, 'lists', 'weekly'), (snap) => {
+    cb(snap.exists() ? snap.data() : null);
+  }, onError);
+}
+
+// Save the standing list (moderator only, enforced by rules).
+export async function savePrayerList(sections) {
+  const { fs, db, authInst } = await init();
+  const user = authInst.currentUser;
+  const prof = await getProfile(user.uid);
+  await fs.setDoc(fs.doc(db, 'lists', 'weekly'), {
+    sections,
+    updatedAt: fs.serverTimestamp(),
+    updatedBy: (prof && prof.name) || 'A moderator',
+  });
+}
+
 /* ── Prayers ──────────────────────────────────────────────────────────── */
 
 // Live feed, newest first. cb receives an array of prayer objects.

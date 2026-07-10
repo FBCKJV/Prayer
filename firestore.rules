@@ -58,6 +58,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Standing weekly prayer list — everyone reads, only moderators edit.
+    match /lists/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+
     // Prayer requests — one shared feed. No private/DM collections exist.
     match /prayers/{id} {
       allow read: if isMember();

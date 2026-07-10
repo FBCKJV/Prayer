@@ -1,6 +1,7 @@
 // app.js — UI controller. Wires the DOM to store.js.
 import * as store from './store.js';
 import * as notify from './notify.js';
+import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -31,6 +32,16 @@ const els = {
   bellBtn: $('#bellBtn'),
   menuBtn: $('#menuBtn'),
   menu: $('#menu'),
+  listBtn: $('#listBtn'),
+  listView: $('#listView'),
+  listBack: $('#listBack'),
+  listEdit: $('#listEdit'),
+  listSave: $('#listSave'),
+  listCancel: $('#listCancel'),
+  listBody: $('#listBody'),
+  listEditor: $('#listEditor'),
+  listMeta: $('#listMeta'),
+  listError: $('#listError'),
   newPrayer: $('#newPrayerBtn'),
   feedList: $('#feedList'),
   feedEmpty: $('#feedEmpty'),
@@ -51,6 +62,8 @@ let prayers = [];             // latest snapshot
 let filter = 'all';
 let unsubPrayers = null;
 let unsubMembers = null;
+let unsubList = null;         // weekly prayer list watcher
+let listData = null;         // saved list doc (null → use seed)
 let members = [];             // live member directory
 let roleByUid = {};           // uid -> role ('admin' for moderators)
 let isAdmin = false;          // is the signed-in user a moderator?
@@ -490,6 +503,112 @@ els.membersBtn.addEventListener('click', () => {
 });
 els.membersClose.addEventListener('click', () => els.membersDialog.close());
 
+/* ── weekly prayer list ───────────────────────────────────────────────── */
+
+function currentSections() {
+  // Once a moderator has saved, that doc is the single source of truth;
+  // the seed is only used until the first save.
+  return listData ? (listData.sections || {}) : LIST_SEED;
+}
+
+function renderListRead() {
+  const sections = currentSections();
+  els.listBody.innerHTML = '';
+  for (const cat of LIST_SECTIONS) {
+    const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const sec = el('section', 'list-section');
+    sec.appendChild(el('h3', null, cat));
+    if (items.length) {
+      const ul = document.createElement('ul');
+      for (const it of items) ul.appendChild(el('li', null, it));
+      sec.appendChild(ul);
+    } else {
+      sec.appendChild(el('p', 'empty-note', '(none listed)'));
+    }
+    els.listBody.appendChild(sec);
+  }
+  els.listMeta.textContent = listData && listData.updatedAt && listData.updatedAt.toDate
+    ? `Updated ${listData.updatedAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} by ${listData.updatedBy || 'a moderator'}`
+    : 'Standing list — updated by the church office.';
+}
+
+function renderListEditor() {
+  const sections = currentSections();
+  els.listEditor.innerHTML = '';
+  for (const cat of LIST_SECTIONS) {
+    const field = el('div', 'ed-field');
+    const label = el('label', null, cat);
+    label.htmlFor = 'ed-' + cat;
+    const ta = document.createElement('textarea');
+    ta.id = 'ed-' + cat;
+    ta.dataset.cat = cat;
+    ta.rows = Math.min(Math.max(String(sections[cat] || '').split('\n').length + 1, 3), 20);
+    ta.value = String(sections[cat] || '');
+    field.appendChild(label);
+    field.appendChild(ta);
+    els.listEditor.appendChild(field);
+  }
+  const hint = el('p', 'ed-hint', 'One prayer request per line. Empty sections show “(none listed)”.');
+  els.listEditor.appendChild(hint);
+}
+
+function setListMode(editing) {
+  els.listBody.hidden = editing;
+  els.listMeta.hidden = editing;
+  els.listEditor.hidden = !editing;
+  els.listEdit.hidden = editing || !isAdmin;
+  els.listSave.hidden = !editing;
+  els.listCancel.hidden = !editing;
+  showError(els.listError, '');
+}
+
+function showListView() {
+  els.feedView.hidden = true;
+  els.listView.hidden = false;
+  setListMode(false);
+  renderListRead();
+  // Live-watch the list; refresh the read view when it changes (unless the
+  // moderator is mid-edit). watchPrayerList resolves to an unsubscribe fn.
+  if (!unsubList) {
+    store.watchPrayerList(
+      (data) => { listData = data; if (els.listEditor.hidden) renderListRead(); },
+      () => {}
+    ).then((u) => {
+      if (els.listView.hidden) u(); // left before it resolved
+      else unsubList = u;
+    });
+  }
+}
+
+function leaveListView() {
+  if (unsubList) { unsubList(); unsubList = null; }
+  els.listView.hidden = true;
+  els.feedView.hidden = false;
+}
+
+els.listBtn.addEventListener('click', () => { closeMenu(); showListView(); });
+els.listBack.addEventListener('click', () => leaveListView());
+els.listEdit.addEventListener('click', () => { renderListEditor(); setListMode(true); });
+els.listCancel.addEventListener('click', () => { renderListRead(); setListMode(false); });
+els.listSave.addEventListener('click', async () => {
+  const sections = {};
+  els.listEditor.querySelectorAll('textarea').forEach((ta) => {
+    sections[ta.dataset.cat] = ta.value.replace(/\n{3,}/g, '\n\n').trim();
+  });
+  els.listSave.disabled = true;
+  showError(els.listError, '');
+  try {
+    await store.savePrayerList(sections);
+    // listData will refresh via the watcher; render immediately too.
+    setListMode(false);
+    renderListRead();
+  } catch (err) {
+    showError(els.listError, 'Could not save. ' + friendlyAuthError(err));
+  } finally {
+    els.listSave.disabled = false;
+  }
+});
+
 /* ── notifications opt-in ─────────────────────────────────────────────── */
 
 const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed';
@@ -616,8 +735,11 @@ async function boot() {
       } else {
         if (unsubPrayers) { unsubPrayers(); unsubPrayers = null; }
         if (unsubMembers) { unsubMembers(); unsubMembers = null; }
+        if (unsubList) { unsubList(); unsubList = null; }
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
+        els.listView.hidden = true;
+        listData = null;
         els.notifyBar.hidden = true;
         els.bellBtn.hidden = true;
         notify.pushLogout();
