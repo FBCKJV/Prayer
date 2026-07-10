@@ -55,8 +55,8 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .who { color: var(--muted); font-size: 0.85rem; max-width: 22vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bell { padding: 8px 10px; line-height: 1; }
-.bell.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.list-nav { white-space: nowrap; }
+.menu-item.on { color: var(--answered); }
 
 /* Overflow menu (Members / Sign out) */
 .menu-wrap { position: relative; }

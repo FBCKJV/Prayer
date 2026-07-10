@@ -29,10 +29,10 @@ const els = {
   notifyBar: $('#notifyBar'),
   notifyBtn: $('#notifyBtn'),
   notifyDismiss: $('#notifyDismiss'),
-  bellBtn: $('#bellBtn'),
+  notifyMenuBtn: $('#notifyMenuBtn'),
   menuBtn: $('#menuBtn'),
   menu: $('#menu'),
-  listBtn: $('#listBtn'),
+  listNavBtn: $('#listNavBtn'),
   listView: $('#listView'),
   listBack: $('#listBack'),
   listEdit: $('#listEdit'),
@@ -586,7 +586,7 @@ function leaveListView() {
   els.feedView.hidden = false;
 }
 
-els.listBtn.addEventListener('click', () => { closeMenu(); showListView(); });
+els.listNavBtn.addEventListener('click', () => { closeMenu(); showListView(); });
 els.listBack.addEventListener('click', () => leaveListView());
 els.listEdit.addEventListener('click', () => { renderListEditor(); setListMode(true); });
 els.listCancel.addEventListener('click', () => { renderListRead(); setListMode(false); });
@@ -620,11 +620,11 @@ function notifBlocked() {
   return typeof Notification !== 'undefined' && Notification.permission === 'denied';
 }
 function updateBell() {
-  if (!notify.pushConfigured) { els.bellBtn.hidden = true; return; }
-  els.bellBtn.hidden = false;
+  if (!notify.pushConfigured) { els.notifyMenuBtn.hidden = true; return; }
+  els.notifyMenuBtn.hidden = false;
   const on = notifGranted();
-  els.bellBtn.classList.toggle('on', on);
-  els.bellBtn.title = on ? 'Prayer alerts are on' : 'Turn on prayer alerts';
+  els.notifyMenuBtn.classList.toggle('on', on);
+  els.notifyMenuBtn.textContent = on ? '🔔 Prayer alerts: On' : '🔔 Turn on prayer alerts';
 }
 
 async function setupNotifications(uid) {
@@ -637,20 +637,19 @@ async function setupNotifications(uid) {
   } catch (_) {}
 }
 
-// The bell is the always-available way to turn alerts on (the bar is just a
-// one-time nudge). Works even after the bar was dismissed.
-els.bellBtn.addEventListener('click', async () => {
+// The menu item is the always-available way to turn alerts on (the in-feed bar
+// is just a one-time nudge). Works even after the bar was dismissed.
+els.notifyMenuBtn.addEventListener('click', async () => {
+  closeMenu();
   if (notifGranted()) {
     alert('Prayer alerts are already on for this device. To turn them off, use your browser/phone notification settings for this site.');
     return;
   }
   if (notifBlocked()) {
-    alert('Notifications are blocked for this site.\n\nTo turn them on:\n• Chrome (Android): tap the ⋮ menu → Site settings → Notifications → Allow. Or tap the 🔒/ⓘ icon left of the address bar → Permissions → Notifications → Allow.\n• Then come back and tap the bell again.');
+    alert('Notifications are blocked for this site.\n\nTo turn them on:\n• Chrome (Android): tap the ⋮ menu → Site settings → Notifications → Allow. Or tap the 🔒/ⓘ icon left of the address bar → Permissions → Notifications → Allow.\n• Then reopen the menu and tap it again.');
     return;
   }
-  els.bellBtn.disabled = true;
   try { await notify.promptEnable(); } catch (_) {}
-  els.bellBtn.disabled = false;
   els.notifyBar.hidden = true;
   updateBell();
 });
@@ -741,7 +740,6 @@ async function boot() {
         els.listView.hidden = true;
         listData = null;
         els.notifyBar.hidden = true;
-        els.bellBtn.hidden = true;
         notify.pushLogout();
         prayers = [];
         members = [];
