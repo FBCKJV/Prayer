@@ -223,6 +223,10 @@ body {
 /* Empty / loading */
 .empty { text-align: center; color: var(--muted); padding: 48px 16px; }
 .empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
+.empty p { margin: 6px 0; }
+.feed-hint { color: var(--text); }
+.feed-code { font-size: 0.75rem; color: var(--muted); word-break: break-all; }
+.empty .btn { margin-top: 12px; }
 .skeleton { height: 120px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 

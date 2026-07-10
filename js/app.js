@@ -64,6 +64,7 @@ let unsubPrayers = null;
 let unsubMembers = null;
 let unsubList = null;         // weekly prayer list watcher
 let listData = null;         // saved list doc (null → use seed)
+let feedLoaded = false;      // has the prayers listener delivered yet?
 let members = [];             // live member directory
 let roleByUid = {};           // uid -> role ('admin' for moderators)
 let isAdmin = false;          // is the signed-in user a moderator?
@@ -674,6 +675,24 @@ function showAuthView() {
   els.authView.hidden = false;
 }
 
+// Show a real, actionable error instead of hanging on "Loading…" forever.
+function feedProblem(err, headline) {
+  const code = (err && (err.code || err.message)) || 'timeout';
+  els.feedEmpty.hidden = false;
+  els.feedEmpty.innerHTML = '';
+  els.feedEmpty.appendChild(el('div', 'big', '⚠️'));
+  els.feedEmpty.appendChild(el('p', null, headline || 'Couldn’t load the prayer chain.'));
+  let hint = 'Check your internet connection and try again.';
+  if (/resource-exhausted/.test(code)) hint = 'The daily free Firebase usage limit was reached. It resets after midnight (Pacific). Try again later.';
+  else if (/permission-denied/.test(code)) hint = 'Your account may have lost access. Ask a leader, or sign out and back in.';
+  else if (/unavailable|network/.test(code)) hint = 'Firebase is temporarily unreachable. Please try again in a moment.';
+  els.feedEmpty.appendChild(el('p', 'feed-hint', hint));
+  els.feedEmpty.appendChild(el('p', 'feed-code', 'Details: ' + code));
+  const btn = el('button', 'btn btn-primary', 'Retry');
+  btn.addEventListener('click', () => location.reload());
+  els.feedEmpty.appendChild(btn);
+}
+
 async function showFeedView() {
   const user = currentUser;
   els.authView.hidden = true;
@@ -681,38 +700,55 @@ async function showFeedView() {
   els.feedView.hidden = false;
   els.feedEmpty.hidden = false;
   els.feedEmpty.innerHTML = '<span class="big">🕊️</span>Loading the prayer chain…';
+  feedLoaded = false;
+
+  // Safety net: if nothing loads within 15s (hung SDK import, dropped
+  // connection, silent listener failure), stop pretending and offer Retry.
+  setTimeout(() => {
+    if (!feedLoaded && currentUser === user && !els.feedView.hidden) {
+      feedProblem(null, 'This is taking longer than it should.');
+    }
+  }, 15000);
+
   // Just after signup, the auth listener fires before the membership doc has
   // finished writing. Reading the profile (and thus becoming a "member") can
   // fail for a moment — wait for it to appear before attaching the live feed.
-  let prof = null;
+  let prof = null, lastErr = null;
   for (let i = 0; i < 8 && currentUser === user; i++) {
-    prof = await store.getProfile(user.uid).catch(() => null);
+    try { prof = await store.getProfile(user.uid); }
+    catch (e) { lastErr = e; prof = null; }
     if (prof || currentUser !== user) break;
     await new Promise((r) => setTimeout(r, 400));
   }
   if (currentUser !== user) return; // signed out / changed while waiting
+  if (!prof && lastErr) { feedProblem(lastErr, 'We couldn’t confirm your membership.'); return; }
+
   els.who.textContent = (prof && prof.name) || user.email || '';
   isAdmin = !!(prof && prof.role === 'admin');
   setupNotifications(user.uid);
-  if (!unsubPrayers) {
-    unsubPrayers = await store.watchPrayers(
-      (items) => { prayers = items; renderFeed(); },
-      () => {}
-    );
-  }
-  if (!unsubMembers) {
-    unsubMembers = await store.watchMembers(
-      (list) => {
-        members = list;
-        roleByUid = {};
-        for (const m of list) roleByUid[m.id] = m.role;
-        // A moderator's role could change live; keep our own flag in sync.
-        isAdmin = roleByUid[user.uid] === 'admin';
-        renderFeed();
-        if (els.membersDialog.open) renderMembers();
-      },
-      () => {}
-    );
+  try {
+    if (!unsubPrayers) {
+      unsubPrayers = await store.watchPrayers(
+        (items) => { feedLoaded = true; prayers = items; renderFeed(); },
+        (err) => feedProblem(err, 'Couldn’t load the prayer chain.')
+      );
+    }
+    if (!unsubMembers) {
+      unsubMembers = await store.watchMembers(
+        (list) => {
+          members = list;
+          roleByUid = {};
+          for (const m of list) roleByUid[m.id] = m.role;
+          // A moderator's role could change live; keep our own flag in sync.
+          isAdmin = roleByUid[user.uid] === 'admin';
+          renderFeed();
+          if (els.membersDialog.open) renderMembers();
+        },
+        () => {}
+      );
+    }
+  } catch (err) {
+    feedProblem(err, 'Couldn’t connect to Firebase.');
   }
 }
 
