@@ -7,7 +7,6 @@ const $ = (sel) => document.querySelector(sel);
 
 const els = {
   topbar: $('.topbar'),
-  who: $('#who'),
   signOut: $('#signOutBtn'),
   setupBanner: $('#setupBanner'),
   authView: $('#authView'),
@@ -723,7 +722,6 @@ async function showFeedView() {
   if (currentUser !== user) return; // signed out / changed while waiting
   if (!prof && lastErr) { feedProblem(lastErr, 'We couldn’t confirm your membership.'); return; }
 
-  els.who.textContent = (prof && prof.name) || user.email || '';
   isAdmin = !!(prof && prof.role === 'admin');
   setupNotifications(user.uid);
   try {
