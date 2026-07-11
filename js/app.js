@@ -69,6 +69,7 @@ let roleByUid = {};           // uid -> role ('admin' for moderators)
 let isAdmin = false;          // is the signed-in user a moderator?
 const openComments = new Map(); // prayerId -> { unsub, listEl }
 const expandedCards = new Set(); // prayerIds currently expanded
+const autoExpandedIds = new Set(); // newest cards we've already auto-opened once
 
 function isModerator(uid) {
   return roleByUid[uid] === 'admin';
@@ -727,7 +728,20 @@ async function showFeedView() {
   try {
     if (!unsubPrayers) {
       unsubPrayers = await store.watchPrayers(
-        (items) => { feedLoaded = true; prayers = items; renderFeed(); },
+        (items) => {
+          feedLoaded = true;
+          prayers = items;
+          // Auto-expand the newest request (once). If the reader collapses it,
+          // it stays collapsed; a brand-new post becomes the newest and opens.
+          if (items.length) {
+            const newestId = items[0].id;
+            if (!autoExpandedIds.has(newestId)) {
+              autoExpandedIds.add(newestId);
+              expandedCards.add(newestId);
+            }
+          }
+          renderFeed();
+        },
         (err) => feedProblem(err, 'Couldn’t load the prayer chain.')
       );
     }
