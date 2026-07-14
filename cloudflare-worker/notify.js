@@ -40,6 +40,10 @@ export default {
     if (!idToken) return json({ error: 'missing-token' }, 400, cors);
     if (type !== 'new_prayer' && type !== 'answered') return json({ error: 'bad-type' }, 400, cors);
 
+    // Diagnostic logging (visible in the Cloudflare Workers Logs tab). Never
+    // logs secret values — only whether they are present — so it's safe to keep.
+    console.log(`[notify] POST type=${type} appId=${env.ONESIGNAL_APP_ID ? 'set' : 'MISSING'} restKey=${env.ONESIGNAL_REST_API_KEY ? 'set' : 'MISSING'} project=${env.FIREBASE_PROJECT_ID || 'MISSING'}`);
+
     // Pull the uid out of the (still-unverified) token so we can read the caller's
     // own member document. The read itself is the real check: Firestore rejects a
     // forged/expired token (401/403) and our security rules reject non-members.
@@ -49,7 +53,10 @@ export default {
     const project = env.FIREBASE_PROJECT_ID;
     const docUrl = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/users/${uid}`;
     const docRes = await fetch(docUrl, { headers: { Authorization: `Bearer ${idToken}` } });
-    if (!docRes.ok) return json({ error: 'not-a-member' }, 403, cors);
+    if (!docRes.ok) {
+      console.log(`[notify] membership check FAILED uid=${uid} firestoreStatus=${docRes.status}`);
+      return json({ error: 'not-a-member' }, 403, cors);
+    }
     const doc = await docRes.json().catch(() => ({}));
     const name = (doc.fields && doc.fields.name && doc.fields.name.stringValue) || 'A member';
 
@@ -67,6 +74,7 @@ export default {
       web_push_topic: type, // collapse duplicates of the same kind
     };
     const { res: osRes, data: osData } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
+    console.log(`[notify] OneSignal responded status=${osRes.status} body=${JSON.stringify(osData)}`);
     return json({ ok: osRes.ok, onesignal: osData }, osRes.ok ? 200 : 502, cors);
   },
 };
