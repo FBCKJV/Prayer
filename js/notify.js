@@ -83,11 +83,20 @@ export async function sendPush(type, url) {
   try { idToken = await getIdToken(); } catch { return; }
   if (!idToken) return;
   try {
-    await fetch(NOTIFY_ENDPOINT, {
+    const res = await fetch(NOTIFY_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, type, url: url || 'https://prayer.fbckjv.app' }),
       keepalive: true,
     });
-  } catch (e) { /* best-effort; never block the UI */ }
+    // Surface failures to the console instead of swallowing them. A 502 (or a
+    // 200 with ok:false) means the Worker reached OneSignal but the send was
+    // rejected — usually a missing REST key / app id in the Worker's settings.
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      console.warn('[notify] push relay failed', res.status, data);
+    }
+  } catch (e) {
+    console.warn('[notify] push relay unreachable', e);
+  }
 }
