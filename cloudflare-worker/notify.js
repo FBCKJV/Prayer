@@ -67,7 +67,11 @@ export default {
 
     const notification = {
       app_id: env.ONESIGNAL_APP_ID,
-      included_segments: ['Subscribed Users'],
+      // "Total Subscriptions" is this account's default all-subscribers segment.
+      // (The old OneSignal default was named "Subscribed Users", which doesn't
+      // exist here — targeting it returned "All included players are not
+      // subscribed" and nothing was ever sent.)
+      included_segments: ['Total Subscriptions'],
       headings: { en: copy.heading },
       contents: { en: copy.content },
       url: url || 'https://prayer.fbckjv.app',
