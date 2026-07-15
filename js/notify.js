@@ -71,7 +71,15 @@ export async function promptEnable() {
   if (!OneSignal) return false;
   try {
     await OneSignal.Notifications.requestPermission();
-    return OneSignal.Notifications.permission === true;
+    // Browser permission alone doesn't put the device in OneSignal's
+    // "Subscribed Users" segment — the push subscription must be explicitly
+    // opted in. Without this, sends return "All included players are not
+    // subscribed" even though a subscription record exists.
+    if (OneSignal.Notifications.permission) {
+      try { await OneSignal.User.PushSubscription.optIn(); } catch (_) {}
+    }
+    return OneSignal.Notifications.permission === true
+      && !!(OneSignal.User && OneSignal.User.PushSubscription && OneSignal.User.PushSubscription.optedIn);
   } catch { return false; }
 }
 
