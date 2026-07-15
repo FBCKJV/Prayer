@@ -642,17 +642,22 @@ async function setupNotifications(uid) {
 // is just a one-time nudge). Works even after the bar was dismissed.
 els.notifyMenuBtn.addEventListener('click', async () => {
   closeMenu();
-  if (notifGranted()) {
-    alert('Prayer alerts are already on for this device. To turn them off, use your browser/phone notification settings for this site.');
-    return;
-  }
   if (notifBlocked()) {
     alert('Notifications are blocked for this site.\n\nTo turn them on:\n• Chrome (Android): tap the ⋮ menu → Site settings → Notifications → Allow. Or tap the 🔒/ⓘ icon left of the address bar → Permissions → Notifications → Allow.\n• Then reopen the menu and tap it again.');
     return;
   }
-  try { await notify.promptEnable(); } catch (_) {}
+  // Always run the enable flow, even when the browser permission is already
+  // granted: permission alone doesn't mean the OneSignal push subscription is
+  // opted in, and if it isn't, this device isn't actually receiving alerts.
+  // promptEnable() requests permission if needed and opts the subscription in.
+  const ok = await notify.promptEnable().catch(() => false);
   els.notifyBar.hidden = true;
   updateBell();
+  if (ok) {
+    alert('✅ Prayer alerts are on for this device.');
+  } else if (notifGranted()) {
+    alert('Permission is granted, but the subscription didn’t finish registering. Please fully close and reopen the app, then try once more.');
+  }
 });
 
 els.notifyBtn.addEventListener('click', async () => {

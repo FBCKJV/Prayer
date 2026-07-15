@@ -27,6 +27,16 @@ function initOneSignal() {
           serviceWorkerParam: { scope: '/' },
           serviceWorkerPath: 'sw.js', // reuse our own service worker
         });
+        // Self-heal on every load: if notification permission is already
+        // granted but the push subscription isn't opted in, opt it in now.
+        // Clearing site data on Android often keeps the OS-level permission,
+        // so the app shows "already on" and never runs the enable flow — this
+        // makes sure such devices still land in the "Subscribed Users" segment.
+        try {
+          if (OneSignal.Notifications.permission) {
+            await OneSignal.User.PushSubscription.optIn();
+          }
+        } catch (_) { /* subscription not ready yet — harmless */ }
         resolve(OneSignal);
       } catch (e) {
         console.warn('[notify] OneSignal init failed', e);
