@@ -621,9 +621,11 @@ function buildSheet(leftCats, leftHeader, rightCats, rightHeader, sections) {
 function printPrayerList() {
   const sections = currentSections();
   els.printArea.innerHTML = '';
-  // Front: A | B    Back: B | A
+  // Both pages are A | B. Printed double-sided with "flip on LONG edge", the
+  // back is mirrored left-to-right, so each half ends up A (front) / B (back).
+  // Cut down the middle → two identical two-sided prayer sheets.
   els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
-  els.printArea.appendChild(buildSheet(PANEL_B_CATS, false, PANEL_A_CATS, true, sections));
+  els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
   window.print();
 }
 

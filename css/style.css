@@ -340,11 +340,11 @@ body {
     position: absolute; top: 46%; left: 50%; width: 3.1in; height: 3.1in;
     transform: translate(-50%, -50%); opacity: 0.06; z-index: 0;
   }
-  .pp-verse { font-size: 8pt; font-style: italic; line-height: 1.25; margin: 0 0 5pt; }
+  .pp-verse { font-size: 9.5pt; font-style: italic; line-height: 1.25; margin: 0 0 6pt; }
   .pp-verse strong { font-style: normal; }
-  .pp-date { font-size: 10.5pt; font-weight: 700; text-align: right; margin: 0 0 7pt; }
-  .pp-cat { font-size: 9pt; line-height: 1.32; margin: 0 0 4pt; overflow-wrap: anywhere; }
-  .pp-blank { border-bottom: 1px solid #444; height: 12.5pt; }
+  .pp-date { font-size: 12pt; font-weight: 700; text-align: right; margin: 0 0 8pt; }
+  .pp-cat { font-size: 11pt; line-height: 1.32; margin: 0 0 6pt; overflow-wrap: anywhere; }
+  .pp-blank { border-bottom: 1px solid #444; height: 16pt; }
 }
 
 [hidden] { display: none !important; }
