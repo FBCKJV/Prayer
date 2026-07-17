@@ -328,14 +328,19 @@ body {
   #printArea { display: block !important; }
 
   .pp-sheet {
-    box-sizing: border-box; display: flex; width: 100%; min-height: 7.7in;
+    box-sizing: border-box; display: flex; width: 100%; height: 7.7in;
     page-break-after: always; color: #000;
     font-family: Arial, Helvetica, "Segoe UI", sans-serif;
   }
   .pp-sheet:last-child { page-break-after: auto; }
   .pp-divider { flex: 0 0 auto; border-left: 1px dashed #999; margin: 0 0.25in; }
-  .pp-panel { flex: 1 1 0; min-width: 0; padding: 0 0.2in; position: relative; overflow: hidden; }
-  .pp-content { position: relative; z-index: 1; }
+  .pp-panel {
+    flex: 1 1 0; min-width: 0; padding: 0 0.2in; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .pp-content { position: relative; z-index: 1; flex: 0 0 auto; }
+  .pp-fill { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; overflow: hidden; margin-top: 4pt; }
+  .pp-line { border-bottom: 1px solid #555; height: 22pt; }
   .pp-wm {
     position: absolute; top: 46%; left: 50%; width: 3.1in; height: 3.1in;
     transform: translate(-50%, -50%); opacity: 0.06; z-index: 0;
@@ -344,7 +349,6 @@ body {
   .pp-verse strong { font-style: normal; }
   .pp-date { font-size: 12pt; font-weight: 700; text-align: right; margin: 0 0 8pt; }
   .pp-cat { font-size: 11pt; line-height: 1.32; margin: 0 0 6pt; overflow-wrap: anywhere; }
-  .pp-blank { border-bottom: 1px solid #444; height: 16pt; }
 }
 
 [hidden] { display: none !important; }

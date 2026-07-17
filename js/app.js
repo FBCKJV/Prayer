@@ -577,7 +577,6 @@ const PRINT_VERSE_REF = 'Philippians 4:6';
 const PRINT_VERSE = 'Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.';
 const PANEL_A_CATS = ['The Lost', 'Praise', 'Health'];
 const PANEL_B_CATS = ['Government', 'Church', 'Missionaries', 'Unspoken', 'Other'];
-const BLANKS_AFTER = { 'The Lost': 2, 'Praise': 2, 'Health': 2, 'Unspoken': 2, 'Other': 12 };
 
 function printCatLine(cat, sections) {
   const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
@@ -601,12 +600,13 @@ function buildPanel(cats, sections, withHeader) {
     content.appendChild(v);
     content.appendChild(el('p', 'pp-date', 'Date: ___ / ___ / _____'));
   }
-  for (const cat of cats) {
-    content.appendChild(printCatLine(cat, sections));
-    const n = BLANKS_AFTER[cat] || 0;
-    for (let i = 0; i < n; i++) content.appendChild(el('div', 'pp-blank'));
-  }
+  for (const cat of cats) content.appendChild(printCatLine(cat, sections));
   panel.appendChild(content);
+  // Write-in lines that auto-fill the rest of the panel: more text above →
+  // fewer lines, less text → more lines (overflow past the page is clipped).
+  const fill = el('div', 'pp-fill');
+  for (let i = 0; i < 40; i++) fill.appendChild(el('div', 'pp-line'));
+  panel.appendChild(fill);
   return panel;
 }
 
