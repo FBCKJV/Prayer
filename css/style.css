@@ -250,6 +250,10 @@ body {
   border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
 }
 .comment-author .mod-badge { font-size: 0.62rem; }
+.mod-badge.pastor {
+  background: color-mix(in srgb, #7a5cd0 20%, transparent); color: #5a3fb0;
+  border-color: color-mix(in srgb, #7a5cd0 45%, transparent);
+}
 
 /* Members dialog */
 .members-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -311,30 +315,36 @@ body {
 }
 .ios-help b { color: var(--gold-soft); }
 
-/* ── Printable Weekly Prayer List (Print / Save as PDF) ────────────────── */
+/* ── Printable Weekly Prayer List ──────────────────────────────────────
+   Landscape 8.5x11 split into two half-page panels. Printed double-sided and
+   cut down the middle, each sheet yields two identical two-sided half-page
+   prayer sheets (Panel A = verse/Lost/Praise/Health, Panel B = Government/
+   Church/Missionaries/Unspoken/Other). Front sheet A|B, back sheet B|A. */
 #printArea { display: none; }
 @media print {
-  /* Hide the whole app; show only the printable document, on clean white. */
+  @page { size: letter landscape; margin: 0.3in; }
   html, body { background: #fff !important; }
   body > *:not(#printArea) { display: none !important; }
   #printArea { display: block !important; }
-  @page { margin: 0.55in; }
 
-  .print-doc { color: #000; background: #fff; font-family: Georgia, "Times New Roman", serif; }
-  .print-head { text-align: center; margin-bottom: 6px; }
-  .print-church { font-size: 19pt; font-weight: 700; }
-  .print-title { font-size: 13pt; }
-  .print-date { font-size: 10pt; color: #333; margin-top: 2px; }
-  .print-hr { border: 0; border-top: 1.5px solid #000; margin: 8px 0 12px; }
-  .print-cols { column-count: 2; column-gap: 0.45in; }
-  .print-cat { margin: 0 0 9px; }
-  .print-cat h3 {
-    font-size: 11pt; margin: 0 0 3px; text-transform: uppercase; letter-spacing: .4px;
-    border-bottom: 1px solid #888; padding-bottom: 1px; break-after: avoid;
+  .pp-sheet {
+    box-sizing: border-box; display: flex; width: 100%; min-height: 7.7in;
+    page-break-after: always; color: #000;
+    font-family: Arial, Helvetica, "Segoe UI", sans-serif;
   }
-  .print-cat ul { margin: 0; padding-left: 15px; }
-  .print-cat li { font-size: 9.5pt; line-height: 1.28; break-inside: avoid; }
-  .print-empty { font-size: 9pt; font-style: italic; color: #555; margin: 0; }
+  .pp-sheet:last-child { page-break-after: auto; }
+  .pp-divider { flex: 0 0 auto; border-left: 1px dashed #999; margin: 0 0.25in; }
+  .pp-panel { flex: 1 1 0; min-width: 0; padding: 0 0.2in; position: relative; overflow: hidden; }
+  .pp-content { position: relative; z-index: 1; }
+  .pp-wm {
+    position: absolute; top: 46%; left: 50%; width: 3.1in; height: 3.1in;
+    transform: translate(-50%, -50%); opacity: 0.06; z-index: 0;
+  }
+  .pp-verse { font-size: 8pt; font-style: italic; line-height: 1.25; margin: 0 0 5pt; }
+  .pp-verse strong { font-style: normal; }
+  .pp-date { font-size: 10.5pt; font-weight: 700; text-align: right; margin: 0 0 7pt; }
+  .pp-cat { font-size: 9pt; line-height: 1.32; margin: 0 0 4pt; overflow-wrap: anywhere; }
+  .pp-blank { border-bottom: 1px solid #444; height: 12.5pt; }
 }
 
 [hidden] { display: none !important; }

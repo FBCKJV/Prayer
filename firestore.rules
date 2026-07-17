@@ -32,6 +32,12 @@ service cloud.firestore {
       return isMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+    // Who may edit the standing Weekly Prayer List: moderators (admin) and the
+    // pastor. Set role: "pastor" on a user's doc in the console to grant it.
+    function isEditor() {
+      return isMember()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor'];
+    }
     function validInvite(code) {
       return code == get(/databases/$(database)/documents/config/invite).data.code;
     }
@@ -58,10 +64,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Standing weekly prayer list — everyone reads, only moderators edit.
+    // Standing weekly prayer list — everyone reads; moderators & pastor edit.
     match /lists/{id} {
       allow read: if isMember();
-      allow write: if isAdmin();
+      allow write: if isEditor();
     }
 
     // Prayer requests — one shared feed. No private/DM collections exist.

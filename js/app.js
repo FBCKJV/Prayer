@@ -68,16 +68,18 @@ let listData = null;         // saved list doc (null → use seed)
 let feedLoaded = false;      // has the prayers listener delivered yet?
 let members = [];             // live member directory
 let roleByUid = {};           // uid -> role ('admin' for moderators)
-let isAdmin = false;          // is the signed-in user a moderator?
+let isAdmin = false;          // is the signed-in user a moderator (admin)?
+let canEditList = false;      // may edit the Weekly Prayer List (admin or pastor)
 const openComments = new Map(); // prayerId -> { unsub, listEl }
 const expandedCards = new Set(); // prayerIds currently expanded
 const autoExpandedIds = new Set(); // newest cards we've already auto-opened once
 
-function isModerator(uid) {
-  return roleByUid[uid] === 'admin';
-}
-function moderatorBadge() {
-  return el('span', 'mod-badge', 'Moderator');
+// A public role badge for a member (Moderator or Pastor), or null.
+function roleBadge(uid) {
+  const r = roleByUid[uid];
+  if (r === 'admin') return el('span', 'mod-badge', 'Moderator');
+  if (r === 'pastor') return el('span', 'mod-badge pastor', 'Pastor');
+  return null;
 }
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -248,7 +250,7 @@ function buildCard(p) {
   const who = el('span', 'card-who');
   who.appendChild(document.createTextNode(' — '));
   const author = el('span', null, p.author || 'A member');
-  if (isModerator(p.uid)) author.appendChild(moderatorBadge());
+  { const rb = roleBadge(p.uid); if (rb) author.appendChild(rb); }
   who.appendChild(author);
   line.appendChild(who);
   summary.appendChild(line);
@@ -367,7 +369,7 @@ function renderComments(listEl, items, prayer) {
     const wrap = el('div', 'comment');
     const head = document.createElement('div');
     const author = el('span', 'comment-author', c.author || 'A member');
-    if (isModerator(c.uid)) author.appendChild(moderatorBadge());
+    { const rb = roleBadge(c.uid); if (rb) author.appendChild(rb); }
     head.appendChild(author);
     head.appendChild(el('span', 'comment-time', timeAgo(c.createdAt)));
     // Deletable by its author, the prayer's author, or a moderator.
@@ -455,7 +457,7 @@ function renderMembers() {
     const row = el('div', 'member');
     const info = el('div', 'member-info');
     const name = el('div', 'member-name', m.name || 'A member');
-    if (m.role === 'admin') name.appendChild(moderatorBadge());
+    { const rb = roleBadge(m.id); if (rb) name.appendChild(rb); }
     info.appendChild(name);
     // Names + join dates are visible to all; emails only to moderators.
     const sub = [memberJoined(m.createdAt)];
@@ -559,45 +561,69 @@ function setListMode(editing) {
   els.listBody.hidden = editing;
   els.listMeta.hidden = editing;
   els.listEditor.hidden = !editing;
-  els.listEdit.hidden = editing || !isAdmin;
+  els.listEdit.hidden = editing || !canEditList;
   els.listSave.hidden = !editing;
   els.listCancel.hidden = !editing;
   els.listPrint.hidden = editing;
   showError(els.listError, '');
 }
 
-// Build a clean, two-column printable document from the current list, then hand
-// off to the browser's Print dialog (where the user can "Save as PDF").
+// Printable Weekly Prayer List — reproduces the church's landscape, two-panel,
+// double-sided half-sheet. Panel A (verse + Lost/Praise/Health) and Panel B
+// (Government/Church/Missionaries/Unspoken + Other-requests fill-in lines) are
+// each a 5.5x8.5 sheet; front = A|B, back = B|A, so a duplex print cut down the
+// middle makes two identical two-sided prayer sheets.
+const PRINT_VERSE_REF = 'Philippians 4:6';
+const PRINT_VERSE = 'Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.';
+const PANEL_A_CATS = ['The Lost', 'Praise', 'Health'];
+const PANEL_B_CATS = ['Government', 'Church', 'Missionaries', 'Unspoken', 'Other'];
+const BLANKS_AFTER = { 'The Lost': 2, 'Praise': 2, 'Health': 2, 'Unspoken': 2, 'Other': 12 };
+
+function printCatLine(cat, sections) {
+  const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  const label = cat === 'Other' ? 'Other requests:' : cat + ':';
+  const p = el('p', 'pp-cat');
+  p.appendChild(el('strong', null, label + ' '));
+  if (items.length) p.appendChild(document.createTextNode(items.join('  -  ')));
+  return p;
+}
+
+function buildPanel(cats, sections, withHeader) {
+  const panel = el('div', 'pp-panel');
+  const wm = document.createElement('img');
+  wm.className = 'pp-wm'; wm.src = './assets/logo-display.png'; wm.alt = '';
+  panel.appendChild(wm);
+  const content = el('div', 'pp-content');
+  if (withHeader) {
+    const v = el('p', 'pp-verse');
+    v.appendChild(el('strong', null, PRINT_VERSE_REF + ' — '));
+    v.appendChild(document.createTextNode(PRINT_VERSE));
+    content.appendChild(v);
+    content.appendChild(el('p', 'pp-date', 'Date: ___ / ___ / _____'));
+  }
+  for (const cat of cats) {
+    content.appendChild(printCatLine(cat, sections));
+    const n = BLANKS_AFTER[cat] || 0;
+    for (let i = 0; i < n; i++) content.appendChild(el('div', 'pp-blank'));
+  }
+  panel.appendChild(content);
+  return panel;
+}
+
+function buildSheet(leftCats, leftHeader, rightCats, rightHeader, sections) {
+  const s = el('div', 'pp-sheet');
+  s.appendChild(buildPanel(leftCats, sections, leftHeader));
+  s.appendChild(el('div', 'pp-divider'));
+  s.appendChild(buildPanel(rightCats, sections, rightHeader));
+  return s;
+}
+
 function printPrayerList() {
   const sections = currentSections();
-  const church = (document.querySelector('.brand-church')?.textContent || '').trim();
-  const dateStr = new Date().toLocaleDateString(undefined, {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
   els.printArea.innerHTML = '';
-  const doc = el('div', 'print-doc');
-  const head = el('div', 'print-head');
-  if (church) head.appendChild(el('div', 'print-church', church));
-  head.appendChild(el('div', 'print-title', 'Weekly Prayer List'));
-  head.appendChild(el('div', 'print-date', dateStr));
-  doc.appendChild(head);
-  doc.appendChild(el('hr', 'print-hr'));
-  const cols = el('div', 'print-cols');
-  for (const cat of LIST_SECTIONS) {
-    const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
-    const block = el('div', 'print-cat');
-    block.appendChild(el('h3', null, cat));
-    if (items.length) {
-      const ul = document.createElement('ul');
-      for (const it of items) ul.appendChild(el('li', null, it));
-      block.appendChild(ul);
-    } else {
-      block.appendChild(el('p', 'print-empty', '(none this week)'));
-    }
-    cols.appendChild(block);
-  }
-  doc.appendChild(cols);
-  els.printArea.appendChild(doc);
+  // Front: A | B    Back: B | A
+  els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
+  els.printArea.appendChild(buildSheet(PANEL_B_CATS, false, PANEL_A_CATS, true, sections));
   window.print();
 }
 
@@ -768,6 +794,7 @@ async function showFeedView() {
   if (!prof && lastErr) { feedProblem(lastErr, 'We couldn’t confirm your membership.'); return; }
 
   isAdmin = !!(prof && prof.role === 'admin');
+  canEditList = isAdmin || (prof && prof.role === 'pastor');
   setupNotifications(user.uid);
   try {
     if (!unsubPrayers) {
@@ -797,6 +824,8 @@ async function showFeedView() {
           for (const m of list) roleByUid[m.id] = m.role;
           // A moderator's role could change live; keep our own flag in sync.
           isAdmin = roleByUid[user.uid] === 'admin';
+          canEditList = isAdmin || roleByUid[user.uid] === 'pastor';
+          if (!els.listView.hidden) setListMode(!els.listEditor.hidden);
           renderFeed();
           if (els.membersDialog.open) renderMembers();
         },
@@ -837,6 +866,7 @@ async function boot() {
         members = [];
         roleByUid = {};
         isAdmin = false;
+        canEditList = false;
         els.authSubmit.disabled = false;
         setMode(mode);
         showAuthView();
