@@ -134,6 +134,7 @@
       <button id="listBack" class="btn btn-ghost" type="button">← Feed</button>
       <h2 class="list-title">Weekly Prayer List</h2>
       <div class="list-head-actions">
+        <button id="listPrint" class="btn btn-ghost" type="button">🖨️ Print</button>
         <button id="listEdit" class="btn btn-primary" type="button" hidden>Edit</button>
         <button id="listSave" class="btn btn-primary" type="button" hidden>Save</button>
         <button id="listCancel" class="btn btn-ghost" type="button" hidden>Cancel</button>
@@ -194,6 +195,9 @@
     <div id="membersList" class="members-list"></div>
   </div>
 </dialog>
+
+<!-- Print-only render target for the Weekly Prayer List (Save as PDF) -->
+<div id="printArea" aria-hidden="true"></div>
 
 <script type="module" src="./js/app.js"></script>
 <script>

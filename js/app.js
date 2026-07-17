@@ -37,6 +37,8 @@ const els = {
   listEdit: $('#listEdit'),
   listSave: $('#listSave'),
   listCancel: $('#listCancel'),
+  listPrint: $('#listPrint'),
+  printArea: $('#printArea'),
   listBody: $('#listBody'),
   listEditor: $('#listEditor'),
   listMeta: $('#listMeta'),
@@ -560,7 +562,43 @@ function setListMode(editing) {
   els.listEdit.hidden = editing || !isAdmin;
   els.listSave.hidden = !editing;
   els.listCancel.hidden = !editing;
+  els.listPrint.hidden = editing;
   showError(els.listError, '');
+}
+
+// Build a clean, two-column printable document from the current list, then hand
+// off to the browser's Print dialog (where the user can "Save as PDF").
+function printPrayerList() {
+  const sections = currentSections();
+  const church = (document.querySelector('.brand-church')?.textContent || '').trim();
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  els.printArea.innerHTML = '';
+  const doc = el('div', 'print-doc');
+  const head = el('div', 'print-head');
+  if (church) head.appendChild(el('div', 'print-church', church));
+  head.appendChild(el('div', 'print-title', 'Weekly Prayer List'));
+  head.appendChild(el('div', 'print-date', dateStr));
+  doc.appendChild(head);
+  doc.appendChild(el('hr', 'print-hr'));
+  const cols = el('div', 'print-cols');
+  for (const cat of LIST_SECTIONS) {
+    const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const block = el('div', 'print-cat');
+    block.appendChild(el('h3', null, cat));
+    if (items.length) {
+      const ul = document.createElement('ul');
+      for (const it of items) ul.appendChild(el('li', null, it));
+      block.appendChild(ul);
+    } else {
+      block.appendChild(el('p', 'print-empty', '(none this week)'));
+    }
+    cols.appendChild(block);
+  }
+  doc.appendChild(cols);
+  els.printArea.appendChild(doc);
+  window.print();
 }
 
 function showListView() {
@@ -589,6 +627,7 @@ function leaveListView() {
 
 els.listNavBtn.addEventListener('click', () => { closeMenu(); showListView(); });
 els.listBack.addEventListener('click', () => leaveListView());
+els.listPrint.addEventListener('click', printPrayerList);
 els.listEdit.addEventListener('click', () => { renderListEditor(); setListMode(true); });
 els.listCancel.addEventListener('click', () => { renderListRead(); setListMode(false); });
 els.listSave.addEventListener('click', async () => {
