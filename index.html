@@ -32,6 +32,7 @@
           <div id="menu" class="menu" role="menu" hidden>
             <button id="notifyMenuBtn" class="menu-item" type="button" role="menuitem" hidden>🔔 Turn on prayer alerts</button>
             <button id="membersBtn" class="menu-item" type="button" role="menuitem">👥 Members</button>
+            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">❓ About &amp; help</button>
             <button id="signOutBtn" class="menu-item" type="button" role="menuitem">↩ Sign out</button>
           </div>
         </div>
@@ -193,6 +194,43 @@
     </div>
     <p class="members-note" id="membersNote"></p>
     <div id="membersList" class="members-list"></div>
+  </div>
+</dialog>
+
+<!-- About / help dialog -->
+<dialog id="aboutDialog" class="dialog">
+  <div class="dialog-form about">
+    <div class="about-head">
+      <img class="about-logo" src="./assets/logo-display.png" alt="" />
+      <div class="about-heading">
+        <div class="about-title">Prayer Chain</div>
+        <div class="about-ver" id="aboutVer"></div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="aboutClose">Close</button>
+    </div>
+
+    <div class="about-section">
+      <h3>Share &amp; open</h3>
+      <img class="about-qr" src="./assets/qr.svg" alt="QR code linking to the app" />
+      <div class="about-url">prayer.fbckjv.app</div>
+      <p class="about-note">Scan to open the app. New members tap <b>Join</b> and enter the invite code.</p>
+    </div>
+
+    <div class="about-section">
+      <h3>Printing the Weekly Prayer List</h3>
+      <p>Open <b>📋 Prayer List → 🖨️ Print</b>, then in the print box choose:</p>
+      <ul>
+        <li><b>Landscape</b> orientation</li>
+        <li><b>Double-sided</b>, flip on <b>long edge</b></li>
+        <li>Print, then <b>cut down the middle</b> — each sheet makes two half-page, two-sided prayer sheets</li>
+      </ul>
+      <p class="about-note">If the front and back don't line up for cutting, switch the flip setting to <b>short edge</b>.</p>
+    </div>
+
+    <div class="about-footer">
+      <b>Faith Baptist Church of Plymouth County</b><br />
+      190 Center Street, Carver, MA
+    </div>
   </div>
 </dialog>
 

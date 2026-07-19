@@ -5,6 +5,9 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 
 const $ = (sel) => document.querySelector(sel);
 
+// Bump this when you deploy a notable change (shown in the About dialog).
+const APP_VERSION = '1.0 (build 18)';
+
 const els = {
   topbar: $('.topbar'),
   signOut: $('#signOutBtn'),
@@ -31,6 +34,10 @@ const els = {
   notifyMenuBtn: $('#notifyMenuBtn'),
   menuBtn: $('#menuBtn'),
   menu: $('#menu'),
+  aboutBtn: $('#aboutBtn'),
+  aboutDialog: $('#aboutDialog'),
+  aboutClose: $('#aboutClose'),
+  aboutVer: $('#aboutVer'),
   listNavBtn: $('#listNavBtn'),
   listView: $('#listView'),
   listBack: $('#listBack'),
@@ -508,6 +515,15 @@ els.membersBtn.addEventListener('click', () => {
 });
 els.membersClose.addEventListener('click', () => els.membersDialog.close());
 
+/* ── about / help ─────────────────────────────────────────────────────── */
+
+els.aboutBtn.addEventListener('click', () => {
+  closeMenu();
+  els.aboutVer.textContent = 'Version ' + APP_VERSION;
+  if (typeof els.aboutDialog.showModal === 'function') els.aboutDialog.showModal();
+});
+els.aboutClose.addEventListener('click', () => els.aboutDialog.close());
+
 /* ── weekly prayer list ───────────────────────────────────────────────── */
 
 function currentSections() {
@@ -860,6 +876,7 @@ async function boot() {
         if (unsubList) { unsubList(); unsubList = null; }
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
+        if (els.aboutDialog.open) els.aboutDialog.close();
         els.listView.hidden = true;
         listData = null;
         els.notifyBar.hidden = true;

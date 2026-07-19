@@ -315,6 +315,22 @@ body {
 }
 .ios-help b { color: var(--gold-soft); }
 
+/* About / help dialog */
+.about { max-height: 84vh; overflow-y: auto; gap: 16px; }
+.about-head { display: flex; align-items: center; gap: 12px; }
+.about-logo { width: 42px; height: 42px; flex: 0 0 auto; }
+.about-heading { flex: 1; min-width: 0; }
+.about-title { font-weight: 700; font-size: 1.1rem; }
+.about-ver { color: var(--muted); font-size: 0.8rem; }
+.about-section h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--gold-soft); text-transform: uppercase; letter-spacing: .4px; }
+.about-section p { margin: 6px 0; font-size: 0.92rem; }
+.about-section ul { margin: 6px 0; padding-left: 20px; font-size: 0.92rem; }
+.about-section li { margin: 3px 0; }
+.about-note { color: var(--muted); font-size: 0.82rem !important; }
+.about-qr { display: block; width: 168px; height: 168px; margin: 4px auto 6px; background: #fff; padding: 8px; border-radius: 10px; border: 1px solid var(--line); }
+.about-url { text-align: center; font-weight: 700; color: var(--gold-soft); }
+.about-footer { border-top: 1px solid var(--line); padding-top: 12px; text-align: center; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+
 /* ── Printable Weekly Prayer List ──────────────────────────────────────
    Landscape 8.5x11 split into two half-page panels. Printed double-sided and
    cut down the middle, each sheet yields two identical two-sided half-page
