@@ -392,6 +392,24 @@ function renderComments(listEl, items, prayer) {
     }
     wrap.appendChild(head);
     wrap.appendChild(el('div', 'comment-body', c.body || ''));
+
+    // ❤️ react — acknowledge / thank someone for an encouraging reply.
+    const hearted = Array.isArray(c.heartedBy) && c.heartedBy.includes(uid);
+    const hearts = Array.isArray(c.heartedBy) ? c.heartedBy.length : 0;
+    const heartBtn = el('button', 'heart-btn' + (hearted ? ' is-on' : ''));
+    heartBtn.type = 'button';
+    heartBtn.title = hearted ? 'Remove your heart' : 'Heart this reply';
+    heartBtn.innerHTML = `<span aria-hidden="true">❤️</span><span class="heart-count">${hearts || ''}</span>`;
+    heartBtn.addEventListener('click', async () => {
+      if (!uid) return;
+      heartBtn.disabled = true;
+      try { await store.toggleCommentHeart(prayer.id, c.id, uid, hearted); }
+      catch (_) {} finally { heartBtn.disabled = false; }
+    });
+    const actions = el('div', 'comment-actions');
+    actions.appendChild(heartBtn);
+    wrap.appendChild(actions);
+
     listEl.appendChild(wrap);
   }
 }

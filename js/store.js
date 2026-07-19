@@ -203,6 +203,15 @@ export async function addComment(prayerId, body) {
   } catch (_) {}
 }
 
+// Toggle a ❤️ on a comment (acknowledge / thank someone for kind words).
+export async function toggleCommentHeart(prayerId, commentId, uid, isOn) {
+  const { fs, db } = await init();
+  const ref = fs.doc(db, 'prayers', prayerId, 'comments', commentId);
+  await fs.updateDoc(ref, {
+    heartedBy: isOn ? fs.arrayRemove(uid) : fs.arrayUnion(uid),
+  });
+}
+
 // Delete a comment (by its author, the prayer's author, or a moderator).
 export async function deleteComment(prayerId, commentId) {
   const { fs, db } = await init();

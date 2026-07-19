@@ -93,7 +93,9 @@ service cloud.firestore {
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0;
-        allow update: if false;
+        // Members may only toggle the ❤️ list; nothing else is editable.
+        allow update: if isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['heartedBy']);
         // Deletable by the comment's author, the prayer's author, or a moderator.
         allow delete: if isMember() && (
           resource.data.uid == request.auth.uid

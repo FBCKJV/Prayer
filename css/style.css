@@ -213,6 +213,15 @@ body {
 .comment-author { font-weight: 600; font-size: 0.85rem; }
 .comment-time { color: var(--muted); font-size: 0.75rem; margin-left: 6px; }
 .comment-body { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+.comment-actions { margin-top: 4px; }
+.heart-btn {
+  background: none; border: 0; cursor: pointer; font: inherit; color: var(--muted);
+  padding: 3px 6px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+}
+.heart-btn span[aria-hidden] { font-size: 0.95rem; filter: grayscale(1); opacity: .5; transition: filter .12s, opacity .12s; }
+.heart-btn.is-on span[aria-hidden] { filter: none; opacity: 1; }
+.heart-btn.is-on { color: var(--danger); }
+.heart-count { font-size: 0.8rem; font-weight: 700; }
 .comment-form { display: flex; gap: 8px; margin-top: 12px; }
 .comment-form input {
   flex: 1; font: inherit; color: var(--text); background: var(--bg-2);
