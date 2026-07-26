@@ -156,6 +156,18 @@ export async function postPrayer({ title, body, category, urgent }) {
   });
 }
 
+// Edit an existing request (author or moderator, enforced by rules).
+export async function updatePrayer(prayerId, { title, body, category, urgent }) {
+  const { fs, db } = await init();
+  await fs.updateDoc(fs.doc(db, 'prayers', prayerId), {
+    title: (title || '').trim(),
+    body: body.trim(),
+    category: category || 'General',
+    urgent: !!urgent,
+    editedAt: fs.serverTimestamp(),
+  });
+}
+
 export async function togglePraying(prayerId, uid, isOn) {
   const { fs, db } = await init();
   const ref = fs.doc(db, 'prayers', prayerId);

@@ -56,6 +56,8 @@ const els = {
   feedTabs: $('.feed-tabs'),
   composer: $('#composer'),
   composerForm: $('#composerForm'),
+  composerTitle: $('#composer .dialog-title'),
+  composerSubmit: $('#composerSubmit'),
   composerCancel: $('#composerCancel'),
   composerError: $('#composerError'),
   cTitle: $('#cTitle'),
@@ -293,8 +295,14 @@ function buildCard(p) {
 
   actions.appendChild(el('span', 'spacer'));
 
-  // The author can answer/delete their own request; a moderator can act on any.
+  // The author can edit/answer/delete their own request; a moderator can act on any.
   if (mine || isAdmin) {
+    const edit = el('button', 'link-btn');
+    edit.type = 'button';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', () => openComposer(p));
+    actions.appendChild(edit);
+
     const ans = el('button', 'link-btn');
     ans.type = 'button';
     ans.textContent = p.answered ? 'Reopen' : 'Mark answered';
@@ -437,31 +445,53 @@ function closeComments(id) {
 
 /* ── composer ─────────────────────────────────────────────────────────── */
 
-els.newPrayer.addEventListener('click', () => {
+let editingId = null; // set when the composer is editing an existing request
+
+// Open the composer for a new request (prayer = null) or to edit an existing one.
+function openComposer(prayer) {
   showError(els.composerError, '');
   els.composerForm.reset();
+  editingId = prayer ? prayer.id : null;
+  if (prayer) {
+    els.composerTitle.textContent = 'Edit prayer request';
+    els.composerSubmit.textContent = 'Save changes';
+    els.cTitle.value = prayer.title || '';
+    els.cBody.value = prayer.body || '';
+    els.cCategory.value = prayer.category || 'General';
+    els.cUrgent.checked = !!prayer.urgent;
+  } else {
+    els.composerTitle.textContent = 'Share a prayer request';
+    els.composerSubmit.textContent = 'Post to the chain';
+  }
   if (typeof els.composer.showModal === 'function') els.composer.showModal();
-});
+}
+
+els.newPrayer.addEventListener('click', () => openComposer(null));
 els.composerCancel.addEventListener('click', () => els.composer.close());
 
 els.composerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = els.cBody.value.trim();
   if (!body) { showError(els.composerError, 'Please write your request.'); return; }
-  els.composer.querySelector('#composerSubmit').disabled = true;
+  const data = {
+    title: els.cTitle.value,
+    body,
+    category: els.cCategory.value,
+    urgent: els.cUrgent.checked,
+  };
+  els.composerSubmit.disabled = true;
   try {
-    await store.postPrayer({
-      title: els.cTitle.value,
-      body,
-      category: els.cCategory.value,
-      urgent: els.cUrgent.checked,
-    });
+    if (editingId) {
+      await store.updatePrayer(editingId, data);
+    } else {
+      await store.postPrayer(data);
+      notify.sendPush('new_prayer'); // fire-and-forget; Worker notifies the chain
+    }
     els.composer.close();
-    notify.sendPush('new_prayer'); // fire-and-forget; Worker notifies the chain
   } catch (err) {
-    showError(els.composerError, 'Could not post. ' + friendlyAuthError(err));
+    showError(els.composerError, (editingId ? 'Could not save. ' : 'Could not post. ') + friendlyAuthError(err));
   } finally {
-    els.composer.querySelector('#composerSubmit').disabled = false;
+    els.composerSubmit.disabled = false;
   }
 });
 
