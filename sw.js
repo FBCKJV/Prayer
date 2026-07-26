@@ -9,7 +9,7 @@ try {
   importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 } catch (e) { /* offline or not set up yet — ignore */ }
 
-const CACHE = 'prayer-chain-v21';
+const CACHE = 'prayer-chain-v22';
 const SHELL = [
   './',
   './index.html',
@@ -58,7 +58,24 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Cache-first for static assets, refreshing the cache in the background.
+  // Network-first for the app code (HTML/JS/CSS) so a new deploy shows up on
+  // the next open instead of getting stuck behind a cached copy. Falls back to
+  // cache when offline. Images and other static assets stay cache-first below.
+  if (/\.(?:js|css|html)$/.test(url.pathname)) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (images, icons, manifest), refreshing the
+  // cache in the background.
   e.respondWith(
     caches.match(req).then((hit) => {
       const net = fetch(req).then((res) => {
