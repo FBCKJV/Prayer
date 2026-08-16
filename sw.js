@@ -9,7 +9,7 @@ try {
   importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 } catch (e) { /* offline or not set up yet — ignore */ }
 
-const CACHE = 'prayer-chain-v23';
+const CACHE = 'prayer-chain-v24';
 const SHELL = [
   './',
   './index.html',

@@ -26,7 +26,10 @@ service cloud.firestore {
     }
     function isMember() {
       return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        // A removed member keeps their doc (so a moderator can restore them) but
+        // the `removed` flag revokes all access until it's cleared.
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.removed != true;
     }
     function isAdmin() {
       return isMember()
@@ -58,9 +61,14 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0
         && request.resource.data.keys().hasOnly(['name', 'email', 'inviteCode', 'createdAt']);
       // Members may rename themselves; nothing else (including role) is editable.
-      allow update: if request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
-      // A moderator can revoke a member (deleting the doc removes all access).
+      // A moderator may also flip the `removed` flag (revoke / restore access),
+      // touching only the removal bookkeeping fields — never name, email, or role.
+      allow update: if (request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['removed', 'removedAt', 'removedBy', 'restoredAt', 'restoredBy']));
+      // A moderator can also hard-delete a member doc if ever needed.
       allow delete: if isAdmin();
     }
 

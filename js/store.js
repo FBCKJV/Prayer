@@ -102,12 +102,30 @@ export async function watchMembers(cb, onError) {
   }, onError);
 }
 
-// Revoke a member's access (moderator only, enforced by rules). Removing the
-// member doc immediately cuts off all read/write; their login still exists but
-// grants nothing. Fully delete the login in the Firebase console if desired.
+// Revoke a member's access (moderator only, enforced by rules). We flag the
+// member rather than deleting their doc, so a moderator can restore them later.
+// The flag cuts off all read/write immediately; their login is untouched.
 export async function removeMember(uid) {
-  const { fs, db } = await init();
-  await fs.deleteDoc(fs.doc(db, 'users', uid));
+  const { fs, db, authInst } = await init();
+  const prof = await getProfile(authInst.currentUser.uid);
+  await fs.updateDoc(fs.doc(db, 'users', uid), {
+    removed: true,
+    removedAt: fs.serverTimestamp(),
+    removedBy: (prof && prof.name) || 'A moderator',
+  });
+}
+
+// Restore a previously-removed member (moderator only). Clears the flag so
+// their access returns. Their password is unchanged — if they'd forgotten it,
+// they use "Forgot your password?" to set a new one.
+export async function restoreMember(uid) {
+  const { fs, db, authInst } = await init();
+  const prof = await getProfile(authInst.currentUser.uid);
+  await fs.updateDoc(fs.doc(db, 'users', uid), {
+    removed: false,
+    restoredAt: fs.serverTimestamp(),
+    restoredBy: (prof && prof.name) || 'A moderator',
+  });
 }
 
 /* ── Weekly prayer list (standing, moderator-edited) ──────────────────── */

@@ -294,6 +294,18 @@ body {
 }
 .member-remove:hover { border-color: var(--danger); color: var(--danger); }
 .member-you { color: var(--muted); font-size: 0.78rem; flex: 0 0 auto; }
+.members-heading {
+  margin: 14px 0 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--muted);
+}
+.member.is-removed { opacity: 0.7; }
+.member.is-removed .member-name { color: var(--muted); }
+.member-restore {
+  flex: 0 0 auto; background: none; border: 1px solid var(--line); color: var(--gold-soft);
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.member-restore:hover { border-color: var(--answered); color: var(--answered); }
+.member-restore:disabled { opacity: 0.6; cursor: default; }
 
 /* Weekly Prayer List */
 .list-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.0 (build 20)';
+const APP_VERSION = '1.0 (build 21)';
 
 const els = {
   topbar: $('.topbar'),
@@ -542,11 +542,14 @@ function memberJoined(ts) {
 
 function renderMembers() {
   const uid = currentUser && currentUser.uid;
+  const active = members.filter((m) => !m.removed);
+  const removed = members.filter((m) => m.removed);
   els.membersNote.textContent = isAdmin
-    ? 'You’re a moderator. Removing a member cuts off their access right away, but their login still exists — they can’t re-register with the same email until you delete it in the Firebase console (Authentication → Users). If someone just forgot their password, don’t remove them: they can use “Forgot your password?” on the sign-in screen.'
-    : `${members.length} member${members.length === 1 ? '' : 's'}. Everyone here posts under their real name — there are no private messages.`;
+    ? 'You’re a moderator. Removing a member cuts off their access right away, but keeps their record so you can restore them here anytime. A restored member signs in with their old password — or uses “Forgot your password?” if they’ve forgotten it.'
+    : `${active.length} member${active.length === 1 ? '' : 's'}. Everyone here posts under their real name — there are no private messages.`;
   els.membersList.innerHTML = '';
-  for (const m of members) {
+
+  for (const m of active) {
     const row = el('div', 'member');
     const info = el('div', 'member-info');
     const name = el('div', 'member-name', m.name || 'A member');
@@ -564,10 +567,9 @@ function renderMembers() {
       const rm = el('button', 'member-remove', 'Remove');
       rm.type = 'button';
       rm.addEventListener('click', async () => {
-        const tail = '\n\nNote: this does NOT delete their login — they can’t re-register with the same email afterward. If they only forgot their password, cancel and have them use “Forgot your password?” instead.';
-        const warn = (m.role === 'admin'
-          ? `Remove moderator ${m.name}? They’ll lose all access.`
-          : `Remove ${m.name} from the prayer chain? They’ll lose all access immediately.`) + tail;
+        const warn = m.role === 'admin'
+          ? `Remove moderator ${m.name}? They’ll lose all access. You can restore them here later.`
+          : `Remove ${m.name} from the prayer chain? They’ll lose access immediately. You can restore them here later.`;
         if (!confirm(warn)) return;
         rm.disabled = true;
         try { await store.removeMember(m.id); }
@@ -576,6 +578,31 @@ function renderMembers() {
       row.appendChild(rm);
     }
     els.membersList.appendChild(row);
+  }
+
+  // Removed members — moderators only. Kept on record so they can be restored.
+  if (isAdmin && removed.length) {
+    els.membersList.appendChild(el('div', 'members-heading', 'Removed'));
+    for (const m of removed) {
+      const row = el('div', 'member is-removed');
+      const info = el('div', 'member-info');
+      info.appendChild(el('div', 'member-name', m.name || 'A member'));
+      const sub = [`removed${m.removedBy ? ' by ' + m.removedBy : ''}`];
+      if (m.email) sub.unshift(m.email);
+      info.appendChild(el('div', 'member-sub', sub.filter(Boolean).join(' · ')));
+      row.appendChild(info);
+
+      const rs = el('button', 'member-restore', 'Restore');
+      rs.type = 'button';
+      rs.addEventListener('click', async () => {
+        if (!confirm(`Restore ${m.name}? Their access returns right away. They sign in with their old password, or use “Forgot your password?” if they’ve forgotten it.`)) return;
+        rs.disabled = true;
+        try { await store.restoreMember(m.id); }
+        catch (_) { rs.disabled = false; alert('Could not restore this member.'); }
+      });
+      row.appendChild(rs);
+      els.membersList.appendChild(row);
+    }
   }
 }
 
@@ -926,7 +953,8 @@ async function showFeedView() {
         (list) => {
           members = list;
           roleByUid = {};
-          for (const m of list) roleByUid[m.id] = m.role;
+          // Removed members keep their doc but hold no role/access.
+          for (const m of list) if (!m.removed) roleByUid[m.id] = m.role;
           // A moderator's role could change live; keep our own flag in sync.
           isAdmin = roleByUid[user.uid] === 'admin';
           canEditList = isAdmin || roleByUid[user.uid] === 'pastor';
