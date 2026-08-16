@@ -28,8 +28,9 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         // A removed member keeps their doc (so a moderator can restore them) but
-        // the `removed` flag revokes all access until it's cleared.
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.removed != true;
+        // the `removed` flag revokes all access until it's cleared. Use get() with
+        // a default so members whose doc has no `removed` field still pass.
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true;
     }
     function isAdmin() {
       return isMember()
