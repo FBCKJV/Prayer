@@ -43,6 +43,14 @@ export async function signOutUser() {
   await auth.signOut(authInst);
 }
 
+// Email a password-reset link (Firebase Auth handles the email + reset page).
+// Works whenever an auth account exists for the address, regardless of whether
+// the person still has a membership doc.
+export async function sendPasswordReset(email) {
+  const { auth, authInst } = await init();
+  await auth.sendPasswordResetEmail(authInst, email.trim());
+}
+
 // Create the auth account, then the user profile doc. The Firestore rules
 // reject the profile write unless inviteCode matches config/invite, so a bad
 // code leaves an orphaned auth account with no access — we delete it so the

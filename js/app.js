@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.0 (build 19)';
+const APP_VERSION = '1.0 (build 20)';
 
 const els = {
   topbar: $('.topbar'),
@@ -23,6 +23,8 @@ const els = {
   invite: $('#inviteInput'),
   authError: $('#authError'),
   authSubmit: $('#authSubmit'),
+  forgotRow: $('#forgotRow'),
+  forgotBtn: $('#forgotBtn'),
   membersBtn: $('#membersBtn'),
   membersDialog: $('#membersDialog'),
   membersClose: $('#membersClose'),
@@ -108,6 +110,7 @@ function timeAgo(ts) {
 }
 
 function showError(el, msg) {
+  el.classList.remove('ok'); // errors are never styled as the green confirmation
   el.textContent = msg;
   el.hidden = !msg;
 }
@@ -137,6 +140,7 @@ function setMode(next) {
   els.invite.required = signup;
   els.password.autocomplete = signup ? 'new-password' : 'current-password';
   els.authSubmit.textContent = signup ? 'Join the chain' : 'Sign in';
+  els.forgotRow.hidden = signup; // only relevant when signing in
   showError(els.authError, '');
 }
 
@@ -165,6 +169,40 @@ els.authForm.addEventListener('submit', async (e) => {
     showError(els.authError, friendlyAuthError(err));
     els.authSubmit.disabled = false;
     els.authSubmit.textContent = prev;
+  }
+});
+
+els.forgotBtn.addEventListener('click', async () => {
+  const email = (els.email.value || '').trim();
+  if (!email || !email.includes('@')) {
+    showError(els.authError, 'Type your email address above first, then tap “Forgot your password?”');
+    els.email.focus();
+    return;
+  }
+  showError(els.authError, '');
+  els.forgotBtn.disabled = true;
+  const prev = els.forgotBtn.textContent;
+  els.forgotBtn.textContent = 'Sending…';
+  const confirm = () => {
+    showError(els.authError, '');
+    els.authError.hidden = false;
+    els.authError.classList.add('ok');
+    els.authError.textContent = 'If an account uses ' + email +
+      ', a reset link is on its way. Check your inbox (and spam).';
+  };
+  try {
+    await store.sendPasswordReset(email);
+    confirm();
+  } catch (err) {
+    // Report success even when the address has no account, so we never reveal
+    // who is or isn't a member. Only surface genuine problems (network,
+    // too many attempts, malformed address).
+    const code = (err && err.code) || '';
+    if (code.includes('user-not-found')) { confirm(); }
+    else { showError(els.authError, friendlyAuthError(err)); }
+  } finally {
+    els.forgotBtn.disabled = false;
+    els.forgotBtn.textContent = prev;
   }
 });
 
@@ -505,7 +543,7 @@ function memberJoined(ts) {
 function renderMembers() {
   const uid = currentUser && currentUser.uid;
   els.membersNote.textContent = isAdmin
-    ? 'You’re a moderator. You can see everyone and revoke access. Removing a member cuts off their access immediately.'
+    ? 'You’re a moderator. Removing a member cuts off their access right away, but their login still exists — they can’t re-register with the same email until you delete it in the Firebase console (Authentication → Users). If someone just forgot their password, don’t remove them: they can use “Forgot your password?” on the sign-in screen.'
     : `${members.length} member${members.length === 1 ? '' : 's'}. Everyone here posts under their real name — there are no private messages.`;
   els.membersList.innerHTML = '';
   for (const m of members) {
@@ -526,9 +564,10 @@ function renderMembers() {
       const rm = el('button', 'member-remove', 'Remove');
       rm.type = 'button';
       rm.addEventListener('click', async () => {
-        const warn = m.role === 'admin'
+        const tail = '\n\nNote: this does NOT delete their login — they can’t re-register with the same email afterward. If they only forgot their password, cancel and have them use “Forgot your password?” instead.';
+        const warn = (m.role === 'admin'
           ? `Remove moderator ${m.name}? They’ll lose all access.`
-          : `Remove ${m.name} from the prayer chain? They’ll lose all access immediately.`;
+          : `Remove ${m.name} from the prayer chain? They’ll lose all access immediately.`) + tail;
         if (!confirm(warn)) return;
         rm.disabled = true;
         try { await store.removeMember(m.id); }

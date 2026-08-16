@@ -141,6 +141,18 @@ body {
   border: 1px solid var(--danger); border-radius: var(--radius-sm);
   color: var(--text); font-size: 0.85rem;
 }
+/* Same box, green, for the password-reset confirmation. */
+.form-error.ok {
+  background: #e7f5ee; border-color: var(--answered);
+}
+.forgot-row { margin: -4px 0 0; text-align: right; }
+.link-inline {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--gold-soft); font-size: 0.82rem; font-weight: 600;
+  text-decoration: underline; font-family: inherit;
+}
+.link-inline:hover { color: var(--gold); }
+.link-inline:disabled { opacity: 0.6; cursor: default; }
 .footer-note { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 18px; max-width: 340px; }
 
 /* Feed */
