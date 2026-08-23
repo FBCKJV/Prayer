@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.0 (build 21)';
+const APP_VERSION = '1.0 (build 22)';
 
 const els = {
   topbar: $('.topbar'),
@@ -327,7 +327,9 @@ function buildCard(p) {
   const commentToggle = el('button', 'link-btn');
   commentToggle.type = 'button';
   const cc = p.commentCount || 0;
-  commentToggle.textContent = cc ? `💬 Updates (${cc})` : '💬 Add update';
+  // Your own post: you "add an update". Someone else's: you "leave encouragement".
+  const emptyLabel = mine ? '💬 Add update' : '💬 Leave encouragement';
+  commentToggle.textContent = cc ? `💬 Updates (${cc})` : emptyLabel;
   commentToggle.addEventListener('click', () => toggleComments(p, card));
   actions.appendChild(commentToggle);
 
