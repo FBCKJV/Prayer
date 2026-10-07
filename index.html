@@ -30,7 +30,7 @@
         <div class="menu-wrap">
           <button id="menuBtn" class="btn btn-ghost menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
           <div id="menu" class="menu" role="menu" hidden>
-            <button id="notifyMenuBtn" class="menu-item" type="button" role="menuitem" hidden>🔔 Turn on prayer alerts</button>
+            <button id="notifyMenuBtn" class="menu-item" type="button" role="menuitem" hidden>🔔 Turn on alerts</button>
             <button id="membersBtn" class="menu-item" type="button" role="menuitem">👥 Members</button>
             <button id="aboutBtn" class="menu-item" type="button" role="menuitem">❓ About &amp; help</button>
             <button id="signOutBtn" class="menu-item" type="button" role="menuitem">↩ Sign out</button>
@@ -38,6 +38,11 @@
         </div>
       </div>
     </div>
+    <nav class="main-nav" role="tablist" aria-label="Sections">
+      <button class="main-tab is-active" data-section="prayer" type="button" role="tab">🙏 Prayer</button>
+      <button class="main-tab" data-section="messages" type="button" role="tab">📣 Messages<span id="msgDot" class="nav-dot" hidden aria-label="new"></span></button>
+      <button class="main-tab" data-section="calendar" type="button" role="tab">📅 Calendar</button>
+    </nav>
   </header>
 
   <!-- Setup-needed banner -->
@@ -110,8 +115,8 @@
     <div id="notifyBar" class="install-bar" hidden>
       <span aria-hidden="true" style="font-size:1.6rem">🔔</span>
       <div class="grow">
-        <div class="it">Turn on prayer alerts</div>
-        <div class="is">Get notified of new requests and answered prayers. No alerts for comments.</div>
+        <div class="it">Turn on alerts</div>
+        <div class="is">Get notified of new prayer requests, answered prayers, and church messages. No alerts for comments.</div>
       </div>
       <button id="notifyBtn" class="btn btn-primary" type="button">Allow</button>
       <button id="notifyDismiss" class="x" type="button" aria-label="Dismiss">×</button>
@@ -130,6 +135,35 @@
 
     <div id="feedList" class="feed-list" aria-live="polite"></div>
     <div id="feedEmpty" class="empty" hidden></div>
+  </main>
+
+  <!-- Church messages view (pastor & moderators post; everyone can 👍) -->
+  <main id="messagesView" class="feed" hidden>
+    <button id="newMsgBtn" class="btn btn-primary btn-new" type="button" hidden>
+      <span aria-hidden="true">＋</span> Post a message
+    </button>
+    <div id="msgList" class="feed-list" aria-live="polite"></div>
+    <div id="msgEmpty" class="empty" hidden></div>
+  </main>
+
+  <!-- Church calendar view (pastor & moderators add dates) -->
+  <main id="calendarView" class="feed" hidden>
+    <section class="cal">
+      <div class="cal-head">
+        <button id="calPrev" class="btn btn-ghost cal-nav" type="button" aria-label="Previous month">‹</button>
+        <h2 id="calMonth" class="cal-month"></h2>
+        <button id="calNext" class="btn btn-ghost cal-nav" type="button" aria-label="Next month">›</button>
+      </div>
+      <div id="calGrid" class="cal-grid"></div>
+      <button id="calToday" class="link-btn cal-today" type="button">Today</button>
+    </section>
+    <div class="cal-day-head">
+      <h3 id="calDayTitle" class="section-heading"></h3>
+      <button id="newEventBtn" class="btn btn-primary" type="button" hidden>＋ Add event</button>
+    </div>
+    <div id="calDayList" class="event-list"></div>
+    <h3 class="section-heading">Coming up</h3>
+    <div id="calUpcoming" class="event-list"></div>
   </main>
 
   <!-- Weekly Prayer List view -->
@@ -184,6 +218,68 @@
     <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" id="composerCancel">Cancel</button>
       <button type="submit" class="btn btn-primary" id="composerSubmit">Post to the chain</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Church message composer (pastor & moderators) -->
+<dialog id="msgComposer" class="dialog">
+  <form method="dialog" class="dialog-form" id="msgForm">
+    <h2 class="dialog-title" id="msgFormTitle">Post a message</h2>
+    <label class="field">
+      <span>Title <small>(optional)</small></span>
+      <input id="mTitle" type="text" maxlength="100" placeholder="e.g. Potluck this Sunday" />
+    </label>
+    <label class="field">
+      <span>Message</span>
+      <textarea id="mBody" rows="6" maxlength="4000" required placeholder="What would you like to tell the church?"></textarea>
+    </label>
+    <label class="check" id="mNotifyRow">
+      <input id="mNotify" type="checkbox" checked />
+      <span>Send a notification to everyone</span>
+    </label>
+    <p id="msgError" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="msgCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="msgSubmit">Post</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Calendar event editor (pastor & moderators) -->
+<dialog id="eventComposer" class="dialog">
+  <form method="dialog" class="dialog-form" id="eventForm">
+    <h2 class="dialog-title" id="eventFormTitle">Add an event</h2>
+    <label class="field">
+      <span>What</span>
+      <input id="eTitle" type="text" maxlength="100" required placeholder="e.g. Men’s breakfast" />
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>Date</span>
+        <input id="eDate" type="date" required />
+      </label>
+      <label class="field">
+        <span>Time <small>(optional)</small></span>
+        <input id="eTime" type="time" />
+      </label>
+    </div>
+    <label class="field">
+      <span>Where <small>(optional)</small></span>
+      <input id="eLocation" type="text" maxlength="120" placeholder="Fellowship hall" />
+    </label>
+    <label class="field">
+      <span>Details <small>(optional)</small></span>
+      <textarea id="eNotes" rows="3" maxlength="1000"></textarea>
+    </label>
+    <label class="check" id="eNotifyRow">
+      <input id="eNotify" type="checkbox" />
+      <span>Send a notification to everyone</span>
+    </label>
+    <p id="eventError" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="eventCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="eventSubmit">Save</button>
     </div>
   </form>
 </dialog>

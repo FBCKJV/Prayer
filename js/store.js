@@ -259,6 +259,100 @@ export async function deleteComment(prayerId, commentId) {
   } catch (_) {}
 }
 
+/* ── Church messages (pastor & moderators post; everyone can 👍) ─────────── */
+
+// Live message board, newest first.
+export async function watchAnnouncements(cb, onError) {
+  const { fs, db } = await init();
+  const q = fs.query(fs.collection(db, 'announcements'), fs.orderBy('createdAt', 'desc'), fs.limit(50));
+  return fs.onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, onError);
+}
+
+// Post a message (pastor or moderator, enforced by rules).
+export async function postAnnouncement({ title, body }) {
+  const { fs, db, authInst } = await init();
+  const user = authInst.currentUser;
+  const prof = await getProfile(user.uid);
+  await fs.addDoc(fs.collection(db, 'announcements'), {
+    uid: user.uid,
+    author: (prof && prof.name) || 'Church office',
+    title: (title || '').trim(),
+    body: body.trim(),
+    thumbsBy: [],
+    createdAt: fs.serverTimestamp(),
+  });
+}
+
+export async function updateAnnouncement(id, { title, body }) {
+  const { fs, db } = await init();
+  await fs.updateDoc(fs.doc(db, 'announcements', id), {
+    title: (title || '').trim(),
+    body: body.trim(),
+    editedAt: fs.serverTimestamp(),
+  });
+}
+
+export async function toggleThumbs(id, uid, isOn) {
+  const { fs, db } = await init();
+  await fs.updateDoc(fs.doc(db, 'announcements', id), {
+    thumbsBy: isOn ? fs.arrayRemove(uid) : fs.arrayUnion(uid),
+  });
+}
+
+export async function deleteAnnouncement(id) {
+  const { fs, db } = await init();
+  await fs.deleteDoc(fs.doc(db, 'announcements', id));
+}
+
+/* ── Church calendar (pastor & moderators add dates) ──────────────────── */
+
+// Live events on or after sinceDate ('YYYY-MM-DD'), soonest first. Dates are
+// stored as plain local-date strings so they sort correctly and never shift
+// across time zones.
+export async function watchEvents(sinceDate, cb, onError) {
+  const { fs, db } = await init();
+  const q = fs.query(
+    fs.collection(db, 'events'),
+    fs.where('date', '>=', sinceDate),
+    fs.orderBy('date', 'asc'),
+    fs.limit(500)
+  );
+  return fs.onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, onError);
+}
+
+// Create (id = null) or update an event.
+export async function saveEvent(id, { title, date, time, location, notes }) {
+  const { fs, db, authInst } = await init();
+  const data = {
+    title: title.trim(),
+    date,
+    time: time || '',
+    location: (location || '').trim(),
+    notes: (notes || '').trim(),
+  };
+  if (id) {
+    await fs.updateDoc(fs.doc(db, 'events', id), { ...data, updatedAt: fs.serverTimestamp() });
+    return;
+  }
+  const user = authInst.currentUser;
+  const prof = await getProfile(user.uid);
+  await fs.addDoc(fs.collection(db, 'events'), {
+    ...data,
+    uid: user.uid,
+    author: (prof && prof.name) || 'Church office',
+    createdAt: fs.serverTimestamp(),
+  });
+}
+
+export async function deleteEvent(id) {
+  const { fs, db } = await init();
+  await fs.deleteDoc(fs.doc(db, 'events', id));
+}
+
 export function currentUid(user) {
   return user && user.uid;
 }

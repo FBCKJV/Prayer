@@ -38,7 +38,7 @@ export default {
 
     const { idToken, type, url } = body || {};
     if (!idToken) return json({ error: 'missing-token' }, 400, cors);
-    if (type !== 'new_prayer' && type !== 'answered') return json({ error: 'bad-type' }, 400, cors);
+    if (!COPY[type]) return json({ error: 'bad-type' }, 400, cors);
 
     // Diagnostic logging (visible in the Cloudflare Workers Logs tab). Never
     // logs secret values — only whether they are present — so it's safe to keep.
@@ -59,11 +59,21 @@ export default {
     }
     const doc = await docRes.json().catch(() => ({}));
     const name = (doc.fields && doc.fields.name && doc.fields.name.stringValue) || 'A member';
+    const role = (doc.fields && doc.fields.role && doc.fields.role.stringValue) || '';
+
+    // Church messages and calendar alerts come only from the pastor or a
+    // moderator — the same people the Firestore rules let post them.
+    if (LEADER_ONLY.includes(type) && role !== 'admin' && role !== 'pastor') {
+      console.log(`[notify] leader-only type=${type} refused for uid=${uid} role=${role || 'none'}`);
+      return json({ error: 'not-a-leader' }, 403, cors);
+    }
 
     // Build the message server-side (never from the client).
-    const copy = type === 'answered'
-      ? { heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }
-      : { heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` };
+    const copy = COPY[type](name);
+
+    // Only deep-link back into our own app (e.g. /#messages), never elsewhere.
+    const home = env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== '*' ? env.ALLOW_ORIGIN : 'https://prayer.fbckjv.app';
+    const target = typeof url === 'string' && url.startsWith(home) ? url : home;
 
     const notification = {
       app_id: env.ONESIGNAL_APP_ID,
@@ -74,7 +84,7 @@ export default {
       included_segments: ['Total Subscriptions'],
       headings: { en: copy.heading },
       contents: { en: copy.content },
-      url: url || 'https://prayer.fbckjv.app',
+      url: target,
       web_push_topic: type, // collapse duplicates of the same kind
     };
     const { res: osRes, data: osData } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
@@ -82,6 +92,16 @@ export default {
     return json({ ok: osRes.ok, onesignal: osData }, osRes.ok ? 200 : 502, cors);
   },
 };
+
+// Notification wording per type, built from the sender's name only.
+const COPY = {
+  new_prayer: (name) => ({ heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` }),
+  answered: (name) => ({ heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }),
+  announcement: (name) => ({ heading: '📣 Church message', content: `${name} posted a message for the church.` }),
+  new_event: (name) => ({ heading: '📅 New on the calendar', content: `${name} added a date to the church calendar.` }),
+};
+// Types only the pastor or a moderator may send.
+const LEADER_ONLY = ['announcement', 'new_event'];
 
 // OneSignal changed its auth header format: newer keys use "Key <key>", older
 // REST API keys use "Basic <key>". Try the modern one first, fall back to the

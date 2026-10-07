@@ -36,8 +36,9 @@ service cloud.firestore {
       return isMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    // Who may edit the standing Weekly Prayer List: moderators (admin) and the
-    // pastor. Set role: "pastor" on a user's doc in the console to grant it.
+    // Church leaders: moderators (admin) and the pastor. They edit the standing
+    // Weekly Prayer List, post church messages, and manage the calendar.
+    // Set role: "pastor" on a user's doc in the console to grant it.
     function isEditor() {
       return isMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor'];
@@ -77,6 +78,32 @@ service cloud.firestore {
     match /lists/{id} {
       allow read: if isMember();
       allow write: if isEditor();
+    }
+
+    // Church messages — one-to-everyone posts from the pastor or a moderator.
+    // Any member may only toggle their 👍 (the thumbsBy list).
+    match /announcements/{id} {
+      allow read: if isMember();
+      allow create: if isEditor()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0;
+      allow update: if isEditor()
+        || (isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['thumbsBy']));
+      allow delete: if isEditor();
+    }
+
+    // Church calendar — everyone reads; pastor & moderators add/edit/remove.
+    // `date` is a plain 'YYYY-MM-DD' string so it sorts and never shifts by time zone.
+    match /events/{id} {
+      allow read: if isMember();
+      allow create, update: if isEditor()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      allow delete: if isEditor();
     }
 
     // Prayer requests — one shared feed. No private/DM collections exist.

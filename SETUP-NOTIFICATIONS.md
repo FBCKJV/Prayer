@@ -1,6 +1,8 @@
 # Setup guide — Push notifications
 
 This turns on alerts for **new prayer requests** and **answered prayers**.
+Church messages (and, when the poster ticks the box, new calendar dates) also
+alert everyone — those can only be sent by the pastor or a moderator.
 Comments never trigger notifications. Everything is free (OneSignal free tier +
 Cloudflare Workers free tier) — no credit card.
 

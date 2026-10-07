@@ -29,8 +29,14 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
   **Members** list that every member can see. Moderator status is granted only in
   the Firebase console, so it can't be self-assigned. See *"Make yourself a
   moderator"* in [SETUP.md](./SETUP.md).
-- **Push notifications** for new prayer requests and answered prayers (never for
-  comments). Privacy-first: alerts name *who* posted, not the request text.
+- **📣 Church messages.** A *Messages* tab where the pastor or a moderator posts
+  one-to-everyone messages; members respond with a 👍 (no reply threads, so it
+  stays a bulletin board, not a chat). A red dot marks new messages.
+- **📅 Church calendar.** A month view plus a "Coming up" list. The pastor and
+  moderators add dates (time, place, details); everyone can see them.
+- **Push notifications** for new prayer requests, answered prayers, and church
+  messages (never for comments). Calendar dates notify only if the poster ticks
+  "Send a notification". Privacy-first: alerts name *who* posted, not the request text.
   Optional, off until configured — see [SETUP-NOTIFICATIONS.md](./SETUP-NOTIFICATIONS.md).
   Uses OneSignal + a small Cloudflare Worker (both free, no server/billing).
 
@@ -56,6 +62,7 @@ js/firebase-config.js ← the ONE file you edit
 js/store.js           All Firebase access (auth + Firestore)
 js/app.js             UI controller
 firestore.rules       Security rules (invite-only, no DMs)
+cloudflare-worker/    Push-notification relay (holds the OneSignal secret)
 manifest.json, sw.js  PWA manifest + offline app-shell service worker
 ```
 

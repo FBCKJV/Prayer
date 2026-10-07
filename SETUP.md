@@ -110,6 +110,13 @@ the role can't be quietly self-granted:
 
 Repeat for anyone else you want to make a moderator.
 
+### Make someone the pastor
+
+Same steps, but set `role` to `pastor`. The pastor gets a **Pastor** badge and,
+like moderators, can edit the Weekly Prayer List, **post church messages** (📣
+Messages tab), and **add/edit calendar dates** (📅 Calendar tab). The pastor
+can't remove members — that stays with moderators.
+
 ### Rotating / removing members
 
 - **Change the invite code:** edit `config/invite → code` in Firestore. People

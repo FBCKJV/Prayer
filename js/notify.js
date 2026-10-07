@@ -93,7 +93,8 @@ export async function promptEnable() {
   } catch { return false; }
 }
 
-// Ask the Worker to notify everyone. type is 'new_prayer' | 'answered'.
+// Ask the Worker to notify everyone. type is 'new_prayer' | 'answered' |
+// 'announcement' | 'new_event' (the last two: pastor & moderators only).
 // The Worker builds the wording itself; we only send the token + type.
 export async function sendPush(type, url) {
   if (!NOTIFY_ENDPOINT) return;
