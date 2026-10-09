@@ -9,7 +9,7 @@ try {
   importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 } catch (e) { /* offline or not set up yet — ignore */ }
 
-const CACHE = 'prayer-chain-v30';
+const CACHE = 'prayer-chain-v31';
 const SHELL = [
   './',
   './index.html',
@@ -23,8 +23,8 @@ const SHELL = [
   './manifest.json',
   './assets/logo-display.png',
   './assets/qr.svg',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
+  './assets/icons/app-icon-192.png',
+  './assets/icons/app-icon-512.png',
   './assets/icons/apple-touch-icon.png',
 ];
 
