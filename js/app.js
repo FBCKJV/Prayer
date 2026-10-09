@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 23)';
+const APP_VERSION = '1.1 (build 24)';
 
 const els = {
   topbar: $('.topbar'),
@@ -1314,6 +1314,37 @@ els.notifyDismiss.addEventListener('click', () => {
   localStorage.setItem(NOTIFY_DISMISS, '1');
 });
 
+/* ── one-time "What's new" ─────────────────────────────────────────────── */
+
+// Bump the suffix to show a new announcement once more to everyone.
+const WHATS_NEW_KEY = 'fbcprayer_whatsnew_church_v1';
+
+function showWhatsNew() {
+  let seen = false;
+  try { seen = !!localStorage.getItem(WHATS_NEW_KEY); } catch (_) {}
+  if (seen || $('#whatsNewDialog').open) return;
+  // Offer the alerts button only when push is set up and not already on.
+  $('#whatsNewAlerts').hidden = !notify.pushConfigured || notifGranted() || notifBlocked();
+  if (typeof $('#whatsNewDialog').showModal === 'function') $('#whatsNewDialog').showModal();
+}
+
+function closeWhatsNew() {
+  try { localStorage.setItem(WHATS_NEW_KEY, '1'); } catch (_) {}
+  $('#whatsNewDialog').close();
+}
+
+$('#whatsNewClose').addEventListener('click', closeWhatsNew);
+// Esc / back button also counts as "seen".
+$('#whatsNewDialog').addEventListener('cancel', () => {
+  try { localStorage.setItem(WHATS_NEW_KEY, '1'); } catch (_) {}
+});
+$('#whatsNewAlerts').addEventListener('click', async () => {
+  closeWhatsNew();
+  try { await notify.promptEnable(); } catch (_) {}
+  els.notifyBar.hidden = true;
+  updateBell();
+});
+
 /* ── view switching ───────────────────────────────────────────────────── */
 
 function showAuthView() {
@@ -1376,6 +1407,7 @@ async function showFeedView() {
   isAdmin = !!(prof && prof.role === 'admin');
   isEditor = isAdmin || (prof && prof.role === 'pastor');
   setupNotifications(user.uid);
+  showWhatsNew();
   if (section === 'calendar') { startEvents(); renderCalendar(); }
   try {
     if (!unsubPrayers) {
@@ -1461,6 +1493,7 @@ async function boot() {
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
         if (els.aboutDialog.open) els.aboutDialog.close();
+        if ($('#whatsNewDialog').open) $('#whatsNewDialog').close();
         els.listView.hidden = true;
         listData = null;
         els.notifyBar.hidden = true;
