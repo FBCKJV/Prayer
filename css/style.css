@@ -440,6 +440,7 @@ body {
 .event-info { flex: 1; min-width: 0; }
 .event-title { font-weight: 700; overflow-wrap: anywhere; }
 .event-sub { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.event-repeat { color: var(--gold-soft); font-size: 0.82rem; font-weight: 600; }
 .event-notes { font-size: 0.9rem; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .event-actions { display: flex; gap: 8px; margin-top: 2px; }
 .event-actions .link-btn { padding: 4px 2px; font-size: 0.85rem; }

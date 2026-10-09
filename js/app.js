@@ -6,7 +6,8 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 24)';
+const APP_VERSION = '1.1 (build 25)';
+const BASE_TITLE = document.title;
 
 const els = {
   topbar: $('.topbar'),
@@ -103,6 +104,9 @@ const els = {
   eTime: $('#eTime'),
   eLocation: $('#eLocation'),
   eNotes: $('#eNotes'),
+  eRepeat: $('#eRepeat'),
+  eUntil: $('#eUntil'),
+  eUntilRow: $('#eUntilRow'),
   eNotify: $('#eNotify'),
   eNotifyRow: $('#eNotifyRow'),
 };
@@ -806,6 +810,16 @@ function printPrayerList() {
   // Cut down the middle → two identical two-sided prayer sheets.
   els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
   els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
+  // "Save as PDF" names the file after the page title, so title it with the
+  // six-digit date (MMDDYY) of the Wednesday it's for: today if it's
+  // Wednesday, otherwise the coming one. e.g. "FBC Prayer List 101426.pdf"
+  const wed = new Date();
+  wed.setDate(wed.getDate() + ((3 - wed.getDay() + 7) % 7));
+  const stamp = pad2(wed.getMonth() + 1) + pad2(wed.getDate()) + pad2(wed.getFullYear() % 100);
+  const prevTitle = document.title;
+  document.title = `FBC Prayer List ${stamp}`;
+  const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
   window.print();
 }
 
@@ -831,6 +845,7 @@ function showListView() {
 
 function closeListView() {
   if (unsubList) { unsubList(); unsubList = null; }
+  document.title = BASE_TITLE; // in case printing changed it and never restored
   els.listView.hidden = true;
 }
 
@@ -1070,12 +1085,94 @@ function fmtDayLong(s) {
   return parseYmd(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+/* Repeating events. A series is stored once (its first date + a `repeat`
+   rule, optional `until`, and a `skip` list); the dates are worked out here.
+   Day arithmetic uses whole UTC days so daylight-saving never shifts a date. */
+const DAY = 86400000;
+const dayNum = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / DAY; };
+const fromDayNum = (n) => { const d = new Date(n * DAY); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; };
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ORDINALS = ['1st', '2nd', '3rd', '4th', 'last'];
+
+// Which week of the month a date falls in: 0-3 = 1st-4th, 4 = last.
+function nthOfMonth(s) {
+  const d = parseYmd(s);
+  const n = Math.floor((d.getDate() - 1) / 7);
+  return n >= 4 ? 4 : n;
+}
+function ordinalDay(n) {
+  const v = n % 100;
+  return n + ((v >= 11 && v <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+}
+
+// Plain-words rule, e.g. "Every Wednesday" or "Monthly on the 1st Sunday".
+function repeatLabel(repeat, date) {
+  const d = parseYmd(date);
+  const wd = WEEKDAYS[d.getDay()];
+  switch (repeat) {
+    case 'weekly': return `Every ${wd}`;
+    case 'biweekly': return `Every other ${wd}`;
+    case 'monthly': return `Monthly on the ${ordinalDay(d.getDate())}`;
+    case 'monthly_nth': return `Monthly on the ${ORDINALS[nthOfMonth(date)]} ${wd}`;
+    default: return '';
+  }
+}
+
+// Every date (YYYY-MM-DD) this event lands on between from and to, inclusive.
+function datesOf(ev, from, to) {
+  const start = ev.date;
+  const last = ev.until && ev.until < to ? ev.until : to;
+  if (!ev.repeat) return start >= from && start <= to ? [start] : [];
+  if (last < start) return [];
+  const skip = new Set(Array.isArray(ev.skip) ? ev.skip : []);
+  const out = [];
+  const lo = from > start ? from : start;
+  if (ev.repeat === 'weekly' || ev.repeat === 'biweekly') {
+    const step = ev.repeat === 'weekly' ? 7 : 14;
+    const s0 = dayNum(start);
+    let n = s0 + Math.ceil((dayNum(lo) - s0) / step) * step;
+    for (const end = dayNum(last); n <= end; n += step) out.push(fromDayNum(n));
+  } else {
+    const s = parseYmd(start);
+    const wd = s.getDay(), nth = nthOfMonth(start);
+    const loD = parseYmd(lo);
+    for (let y = loD.getFullYear(), m = loD.getMonth(); ; m++) {
+      const first = new Date(y, m, 1);
+      const key0 = ymd(first);
+      if (key0 > last) break;
+      let day;
+      if (ev.repeat === 'monthly') {
+        const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+        day = s.getDate() <= dim ? s.getDate() : null; // no Feb 30th: skip that month
+      } else {
+        const firstWd = (wd - first.getDay() + 7) % 7 + 1; // first matching weekday
+        const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+        day = nth === 4 ? firstWd + Math.floor((dim - firstWd) / 7) * 7 : firstWd + nth * 7;
+      }
+      if (day) {
+        const key = ymd(new Date(first.getFullYear(), first.getMonth(), day));
+        if (key >= lo && key <= last) out.push(key);
+      }
+    }
+  }
+  return out.filter((k) => !skip.has(k));
+}
+
+// All occurrences between from and to, each a copy of its event with `date`
+// set to that day (the series start stays in `seriesDate`).
+function occurrences(from, to) {
+  const out = [];
+  for (const ev of events) {
+    for (const date of datesOf(ev, from, to)) out.push({ ...ev, seriesDate: ev.date, date });
+  }
+  return out.sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+}
+
 let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
 let calSelected = ymd(new Date());
 
 function eventsOn(date) {
-  return events.filter((ev) => ev.date === date)
-    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  return occurrences(date, date);
 }
 
 // Start watching the calendar the first time it's opened. Only events from
@@ -1102,11 +1199,12 @@ function renderCalendar() {
   const today = ymd(new Date());
   els.calMonth.textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-  const withEvents = new Set(events.map((ev) => ev.date));
   els.calGrid.innerHTML = '';
   for (const w of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) els.calGrid.appendChild(el('div', 'cal-wd', w));
   const start = new Date(calMonth);
   start.setDate(1 - start.getDay()); // back up to Sunday
+  const gridEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41);
+  const withEvents = new Set(occurrences(ymd(start), ymd(gridEnd)).map((ev) => ev.date));
   for (let i = 0; i < 42; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     if (i >= 35 && d.getMonth() !== calMonth.getMonth()) break; // drop an all-next-month row
@@ -1139,8 +1237,12 @@ function renderCalendar() {
 
   // Coming up (today onward)
   els.calUpcoming.innerHTML = '';
-  const upcoming = events.filter((ev) => ev.date >= today)
-    .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+  const horizon = new Date(); horizon.setDate(horizon.getDate() + 120);
+  // A repeating series shows once here (its next date) so it can't crowd out
+  // everything else; the calendar grid above still shows every date.
+  const seen = new Set();
+  const upcoming = occurrences(today, ymd(horizon))
+    .filter((ev) => !seen.has(ev.id) && seen.add(ev.id))
     .slice(0, 10);
   if (upcoming.length) for (const ev of upcoming) els.calUpcoming.appendChild(buildEvent(ev, true));
   else els.calUpcoming.appendChild(el('p', 'event-empty', eventsLoaded ? 'No upcoming events yet.' : 'Loading…'));
@@ -1170,17 +1272,34 @@ function buildEvent(ev, showDate) {
   if (ev.time) sub.push(fmtTime(ev.time));
   if (ev.location) sub.push(ev.location);
   if (sub.length) info.appendChild(el('div', 'event-sub', sub.join(' · ')));
+  if (ev.repeat) {
+    const until = ev.until ? ' until ' + parseYmd(ev.until).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    info.appendChild(el('div', 'event-repeat', '🔁 ' + repeatLabel(ev.repeat, ev.seriesDate || ev.date) + until));
+  }
   if (ev.notes) info.appendChild(el('div', 'event-notes', ev.notes));
   if (isEditor) {
     const acts = el('div', 'event-actions');
-    const edit = el('button', 'link-btn', 'Edit');
+    const series = !!ev.repeat;
+    const edit = el('button', 'link-btn', series ? 'Edit series' : 'Edit');
     edit.type = 'button';
-    edit.addEventListener('click', () => openEventComposer(ev, null));
+    edit.addEventListener('click', () => openEventComposer(events.find((x) => x.id === ev.id) || ev, null));
     acts.appendChild(edit);
-    const del = el('button', 'link-btn danger', 'Delete');
+    if (series) {
+      const skip = el('button', 'link-btn', 'Skip this date');
+      skip.type = 'button';
+      skip.addEventListener('click', async () => {
+        if (!confirm(`Leave “${ev.title}” off ${fmtDayLong(ev.date)}? The other dates stay.`)) return;
+        try { await store.skipEventDate(ev.id, ev.date); } catch (_) { alert('Could not update this event.'); }
+      });
+      acts.appendChild(skip);
+    }
+    const del = el('button', 'link-btn danger', series ? 'Delete series' : 'Delete');
     del.type = 'button';
     del.addEventListener('click', async () => {
-      if (!confirm(`Remove “${ev.title}” from the calendar?`)) return;
+      const msg = series
+        ? `Delete every date of “${ev.title}”? To drop just one date, use “Skip this date” instead.`
+        : `Remove “${ev.title}” from the calendar?`;
+      if (!confirm(msg)) return;
       try { await store.deleteEvent(ev.id); } catch (_) { alert('Could not delete this event.'); }
     });
     acts.appendChild(del);
@@ -1204,12 +1323,28 @@ function openEventComposer(ev, date) {
     els.eTime.value = ev.time || '';
     els.eLocation.value = ev.location || '';
     els.eNotes.value = ev.notes || '';
+    els.eRepeat.value = ev.repeat || '';
+    els.eUntil.value = ev.until || '';
   } else {
     els.eventFormTitle.textContent = 'Add an event';
     els.eDate.value = date || calSelected;
   }
+  syncRepeatOptions();
   if (typeof els.eventComposer.showModal === 'function') els.eventComposer.showModal();
 }
+
+// Spell the repeat choices out for the chosen date ("Every Wednesday", …).
+function syncRepeatOptions() {
+  const date = els.eDate.value;
+  for (const opt of els.eRepeat.options) {
+    if (!opt.value) continue;
+    opt.textContent = /^\d{4}-\d{2}-\d{2}$/.test(date) ? repeatLabel(opt.value, date) : opt.dataset.plain || opt.textContent;
+  }
+  els.eUntilRow.hidden = !els.eRepeat.value;
+}
+for (const opt of els.eRepeat.options) opt.dataset.plain = opt.textContent;
+els.eDate.addEventListener('change', syncRepeatOptions);
+els.eRepeat.addEventListener('change', syncRepeatOptions);
 
 els.calPrev.addEventListener('click', () => {
   calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
@@ -1234,11 +1369,14 @@ els.eventForm.addEventListener('submit', async (e) => {
   const date = els.eDate.value;
   if (!title) { showError(els.eventError, 'Please name the event.'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showError(els.eventError, 'Please pick a date.'); return; }
-  const data = { title, date, time: els.eTime.value, location: els.eLocation.value, notes: els.eNotes.value };
+  const repeat = els.eRepeat.value;
+  const until = repeat ? els.eUntil.value : '';
+  if (until && until < date) { showError(els.eventError, 'The end date is before the first date.'); return; }
+  const data = { title, date, time: els.eTime.value, location: els.eLocation.value, notes: els.eNotes.value, repeat, until };
   els.eventSubmit.disabled = true;
   try {
     await store.saveEvent(editingEventId, data);
-    if (!editingEventId && els.eNotify.checked) notify.sendPush('new_event', sectionUrl('calendar'));
+    if (!editingEventId && els.eNotify.checked) notify.sendPush('new_event', sectionUrl('calendar'), { eventDate: date });
     // Jump the calendar to the saved date so it's easy to see.
     const d = parseYmd(date);
     calSelected = date;

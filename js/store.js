@@ -308,24 +308,35 @@ export async function deleteAnnouncement(id) {
 
 /* ── Church calendar (pastor & moderators add dates) ──────────────────── */
 
-// Live events on or after sinceDate ('YYYY-MM-DD'), soonest first. Dates are
-// stored as plain local-date strings so they sort correctly and never shift
-// across time zones.
+export const REPEATS = ['weekly', 'biweekly', 'monthly', 'monthly_nth'];
+
+// Live calendar. Two listeners merged into one list: one-off events on or
+// after sinceDate ('YYYY-MM-DD'), plus every repeating series no matter when
+// it started (a weekly service that began years ago still shows today).
+// Dates are plain local-date strings so they sort and never shift by zone.
 export async function watchEvents(sinceDate, cb, onError) {
   const { fs, db } = await init();
-  const q = fs.query(
-    fs.collection(db, 'events'),
-    fs.where('date', '>=', sinceDate),
-    fs.orderBy('date', 'asc'),
-    fs.limit(500)
-  );
-  return fs.onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-  }, onError);
+  const col = fs.collection(db, 'events');
+  let recent = [], series = [];
+  const emit = () => {
+    const byId = new Map();
+    for (const e of [...recent, ...series]) byId.set(e.id, e);
+    cb([...byId.values()]);
+  };
+  const toList = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const u1 = fs.onSnapshot(
+    fs.query(col, fs.where('date', '>=', sinceDate), fs.orderBy('date', 'asc'), fs.limit(500)),
+    (snap) => { recent = toList(snap); emit(); }, onError);
+  const u2 = fs.onSnapshot(
+    fs.query(col, fs.where('repeat', 'in', REPEATS), fs.limit(200)),
+    (snap) => { series = toList(snap); emit(); }, onError);
+  return () => { u1(); u2(); };
 }
 
 // Create (id = null) or update an event.
-export async function saveEvent(id, { title, date, time, location, notes }) {
+// repeat: '' | 'weekly' | 'biweekly' | 'monthly' | 'monthly_nth';
+// until: optional last date ('YYYY-MM-DD') for a repeating series.
+export async function saveEvent(id, { title, date, time, location, notes, repeat, until }) {
   const { fs, db, authInst } = await init();
   const data = {
     title: title.trim(),
@@ -333,6 +344,8 @@ export async function saveEvent(id, { title, date, time, location, notes }) {
     time: time || '',
     location: (location || '').trim(),
     notes: (notes || '').trim(),
+    repeat: REPEATS.includes(repeat) ? repeat : '',
+    until: repeat && until ? until : '',
   };
   if (id) {
     await fs.updateDoc(fs.doc(db, 'events', id), { ...data, updatedAt: fs.serverTimestamp() });
@@ -345,6 +358,15 @@ export async function saveEvent(id, { title, date, time, location, notes }) {
     uid: user.uid,
     author: (prof && prof.name) || 'Church office',
     createdAt: fs.serverTimestamp(),
+  });
+}
+
+// Leave one date out of a repeating series (e.g. no service on a holiday).
+export async function skipEventDate(id, date) {
+  const { fs, db } = await init();
+  await fs.updateDoc(fs.doc(db, 'events', id), {
+    skip: fs.arrayUnion(date),
+    updatedAt: fs.serverTimestamp(),
   });
 }
 
