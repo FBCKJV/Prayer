@@ -264,6 +264,22 @@
         <input id="eTime" type="time" />
       </label>
     </div>
+    <div class="field-row">
+      <label class="field">
+        <span>Repeats</span>
+        <select id="eRepeat">
+          <option value="">Does not repeat</option>
+          <option value="weekly">Every week</option>
+          <option value="biweekly">Every other week</option>
+          <option value="monthly">Monthly on this date</option>
+          <option value="monthly_nth">Monthly on this weekday</option>
+        </select>
+      </label>
+      <label class="field" id="eUntilRow" hidden>
+        <span>Ends <small>(optional)</small></span>
+        <input id="eUntil" type="date" />
+      </label>
+    </div>
     <label class="field">
       <span>Where <small>(optional)</small></span>
       <input id="eLocation" type="text" maxlength="120" placeholder="Fellowship hall" />

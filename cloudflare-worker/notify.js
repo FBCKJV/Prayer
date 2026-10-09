@@ -36,7 +36,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { return json({ error: 'bad-json' }, 400, cors); }
 
-    const { idToken, type, url } = body || {};
+    const { idToken, type, url, eventDate } = body || {};
     if (!idToken) return json({ error: 'missing-token' }, 400, cors);
     if (!COPY[type]) return json({ error: 'bad-type' }, 400, cors);
 
@@ -68,8 +68,15 @@ export default {
       return json({ error: 'not-a-leader' }, 403, cors);
     }
 
-    // Build the message server-side (never from the client).
-    const copy = COPY[type](name);
+    // Build the message server-side (never from the client). Every alert is
+    // stamped with the day it was sent, so an old one read later is obviously
+    // old. A calendar alert also names the event's date — accepted only as a
+    // strict YYYY-MM-DD and re-formatted here, so no client text gets through.
+    const sent = fmtDate(new Date());
+    const when = typeof eventDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(eventDate)
+      ? fmtDate(new Date(eventDate + 'T12:00:00Z'), 'UTC') : '';
+    const base = COPY[type](name, when);
+    const copy = { heading: `${base.heading} · ${sent}`, content: base.content };
 
     // Only deep-link back into our own app (e.g. /#messages), never elsewhere.
     const home = env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== '*' ? env.ALLOW_ORIGIN : 'https://prayer.fbckjv.app';
@@ -98,8 +105,16 @@ const COPY = {
   new_prayer: (name) => ({ heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` }),
   answered: (name) => ({ heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }),
   announcement: (name) => ({ heading: '📣 Church message', content: `${name} posted a message for the church.` }),
-  new_event: (name) => ({ heading: '📅 New on the calendar', content: `${name} added a date to the church calendar.` }),
+  new_event: (name, when) => ({
+    heading: '📅 New on the calendar',
+    content: when ? `${name} added an event on ${when}.` : `${name} added a date to the church calendar.`,
+  }),
 };
+
+// "Fri, Oct 9" — in the church's time zone (Carver, MA) unless told otherwise.
+function fmtDate(d, timeZone = 'America/New_York') {
+  return d.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' });
+}
 // Types only the pastor or a moderator may send.
 const LEADER_ONLY = ['announcement', 'new_event'];
 

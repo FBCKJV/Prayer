@@ -96,7 +96,9 @@ export async function promptEnable() {
 // Ask the Worker to notify everyone. type is 'new_prayer' | 'answered' |
 // 'announcement' | 'new_event' (the last two: pastor & moderators only).
 // The Worker builds the wording itself; we only send the token + type.
-export async function sendPush(type, url) {
+// extra: { eventDate: 'YYYY-MM-DD' } for 'new_event' (the Worker checks the
+// format and writes the date into the alert itself).
+export async function sendPush(type, url, extra) {
   if (!NOTIFY_ENDPOINT) return;
   let idToken;
   try { idToken = await getIdToken(); } catch { return; }
@@ -105,7 +107,7 @@ export async function sendPush(type, url) {
     const res = await fetch(NOTIFY_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, type, url: url || 'https://prayer.fbckjv.app' }),
+      body: JSON.stringify({ idToken, type, url: url || 'https://prayer.fbckjv.app', ...(extra || {}) }),
       keepalive: true,
     });
     // Surface failures to the console instead of swallowing them. A 502 (or a
