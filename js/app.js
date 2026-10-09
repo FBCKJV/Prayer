@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 25)';
+const APP_VERSION = '1.1 (build 26)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -980,7 +980,11 @@ function buildMessage(m) {
   const author = el('span', 'msg-author', m.author || 'Church office');
   { const rb = roleBadge(m.uid); if (rb) author.appendChild(rb); }
   head.appendChild(author);
-  head.appendChild(el('span', 'msg-time', timeAgo(m.createdAt) + (m.editedAt ? ' · edited' : '')));
+  // Always show the posted date, so an old message never reads as new.
+  const posted = m.createdAt && m.createdAt.toDate
+    ? m.createdAt.toDate().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · '
+    : '';
+  head.appendChild(el('span', 'msg-time', posted + timeAgo(m.createdAt) + (m.editedAt ? ' · edited' : '')));
   card.appendChild(head);
 
   if (m.title) card.appendChild(el('h3', 'msg-title', m.title));
@@ -1327,7 +1331,9 @@ function openEventComposer(ev, date) {
     els.eUntil.value = ev.until || '';
   } else {
     els.eventFormTitle.textContent = 'Add an event';
-    els.eDate.value = date || calSelected;
+    // Only pre-fill a day the leader actually picked on the calendar. Starting
+    // on "today" made it easy to save an event on the wrong date by mistake.
+    els.eDate.value = date && date > ymd(new Date()) ? date : '';
   }
   syncRepeatOptions();
   if (typeof els.eventComposer.showModal === 'function') els.eventComposer.showModal();
