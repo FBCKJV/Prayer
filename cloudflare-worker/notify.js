@@ -68,15 +68,12 @@ export default {
       return json({ error: 'not-a-leader' }, 403, cors);
     }
 
-    // Build the message server-side (never from the client). Every alert is
-    // stamped with the day it was sent, so an old one read later is obviously
-    // old. A calendar alert also names the event's date — accepted only as a
-    // strict YYYY-MM-DD and re-formatted here, so no client text gets through.
-    const sent = fmtDate(new Date());
+    // Build the message server-side (never from the client). A calendar alert
+    // names the event's day — accepted only as a strict YYYY-MM-DD and
+    // re-formatted here, so no client text gets through.
     const when = typeof eventDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(eventDate)
       ? fmtDate(new Date(eventDate + 'T12:00:00Z'), 'UTC') : '';
-    const base = COPY[type](name, when);
-    const copy = { heading: `${base.heading} · ${sent}`, content: base.content };
+    const copy = COPY[type](name, when);
 
     // Only deep-link back into our own app (e.g. /#messages), never elsewhere.
     const home = env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== '*' ? env.ALLOW_ORIGIN : 'https://prayer.fbckjv.app';
@@ -111,8 +108,8 @@ const COPY = {
   }),
 };
 
-// "Fri, Oct 9" — in the church's time zone (Carver, MA) unless told otherwise.
-function fmtDate(d, timeZone = 'America/New_York') {
+// "Sun, Oct 18"
+function fmtDate(d, timeZone) {
   return d.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' });
 }
 // Types only the pastor or a moderator may send.
