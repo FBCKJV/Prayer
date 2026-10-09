@@ -447,6 +447,14 @@ body {
 .field-row { display: flex; gap: 10px; }
 .field-row .field { flex: 1; min-width: 0; }
 
+/* One-time "What's new" dialog */
+.whats-new p { margin: 0; }
+.wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.wn-list li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.95rem; }
+.wn-list li > span { font-size: 1.4rem; line-height: 1.2; flex: 0 0 auto; }
+.wn-note { color: var(--muted); font-size: 0.85rem; }
+.whats-new .dialog-actions { flex-wrap: wrap; }
+
 /* ── Printable Weekly Prayer List ──────────────────────────────────────
    Landscape 8.5x11 split into two half-page panels. Printed double-sided and
    cut down the middle, each sheet yields two identical two-sided half-page
