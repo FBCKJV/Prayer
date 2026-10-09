@@ -364,6 +364,89 @@ body {
 .about-url { text-align: center; font-weight: 700; color: var(--gold-soft); }
 .about-footer { border-top: 1px solid var(--line); padding-top: 12px; text-align: center; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
 
+/* Section nav (Prayer / Messages / Calendar) — second row of the top bar */
+.main-nav {
+  max-width: var(--maxw); margin: 0 auto; display: flex; gap: 4px;
+  padding: 0 12px 8px;
+}
+.main-tab {
+  flex: 1; position: relative; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; font-size: 0.9rem; padding: 8px 6px; border-radius: 8px;
+  cursor: pointer; white-space: nowrap;
+}
+.main-tab:hover { color: var(--text); }
+.main-tab.is-active { background: var(--surface); color: var(--gold-soft); box-shadow: var(--shadow); }
+.nav-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger); margin-left: 5px; vertical-align: 2px;
+}
+@media (max-width: 380px) { .main-tab { font-size: 0.82rem; padding: 8px 2px; } }
+
+/* Church messages */
+.msg-card { padding: 14px 16px 12px; }
+.msg-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.msg-author { font-weight: 700; display: inline-flex; align-items: center; flex-wrap: wrap; }
+.msg-time { color: var(--muted); font-size: 0.78rem; }
+.msg-title { margin: 8px 0 2px; font-size: 1.08rem; }
+.msg-card .card-body { margin: 6px 0 0; }
+.msg-card .card-actions { margin-top: 10px; }
+.thumbs-btn { padding: 6px 12px; }
+.thumbs-who { color: var(--muted); font-size: 0.78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+
+/* Church calendar */
+.cal {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 12px 6px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cal-month { margin: 0; font-size: 1.1rem; text-align: center; flex: 1; }
+.cal-nav { padding: 6px 14px; font-size: 1.2rem; line-height: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-day {
+  position: relative; aspect-ratio: 1 / 1; min-height: 38px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: none; border: 0; border-radius: 10px; font: inherit; color: var(--text); cursor: pointer;
+}
+.cal-day:hover { background: var(--surface-2); }
+.cal-day.is-out { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.cal-day.is-today .cal-num { color: var(--gold-soft); font-weight: 800; }
+.cal-day.is-selected { background: var(--gold); color: #fff; }
+.cal-day.is-selected .cal-num { color: #fff; }
+.cal-num { font-size: 0.92rem; font-weight: 600; line-height: 1; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.cal-day.is-selected .cal-dot { background: #fff; }
+.cal-today { display: block; margin: 2px auto 0; font-size: 0.85rem; font-weight: 600; color: var(--gold-soft); }
+.cal-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.section-heading {
+  margin: 18px 0 8px; font-size: 0.85rem; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--gold-soft);
+}
+.cal-day-head .section-heading { margin: 0; }
+.cal-day-head .btn { padding: 7px 12px; font-size: 0.88rem; flex: 0 0 auto; }
+.event-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.event {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 14px;
+}
+.event-date {
+  flex: 0 0 auto; width: 48px; display: flex; flex-direction: column; align-items: center;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 0;
+  font: inherit; color: var(--text); cursor: pointer;
+}
+.event-mon { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--gold-soft); }
+.event-dom { font-size: 1.2rem; font-weight: 800; line-height: 1.1; }
+.event-info { flex: 1; min-width: 0; }
+.event-title { font-weight: 700; overflow-wrap: anywhere; }
+.event-sub { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.event-notes { font-size: 0.9rem; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.event-actions { display: flex; gap: 8px; margin-top: 2px; }
+.event-actions .link-btn { padding: 4px 2px; font-size: 0.85rem; }
+.event-empty { color: var(--muted); font-size: 0.9rem; margin: 2px 0; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; min-width: 0; }
+
 /* ── Printable Weekly Prayer List ──────────────────────────────────────
    Landscape 8.5x11 split into two half-page panels. Printed double-sided and
    cut down the middle, each sheet yields two identical two-sided half-page

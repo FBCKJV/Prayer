@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.0 (build 22)';
+const APP_VERSION = '1.1 (build 23)';
 
 const els = {
   topbar: $('.topbar'),
@@ -66,6 +66,45 @@ const els = {
   cBody: $('#cBody'),
   cCategory: $('#cCategory'),
   cUrgent: $('#cUrgent'),
+  mainNav: $('.main-nav'),
+  msgDot: $('#msgDot'),
+  messagesView: $('#messagesView'),
+  newMsg: $('#newMsgBtn'),
+  msgList: $('#msgList'),
+  msgEmpty: $('#msgEmpty'),
+  msgComposer: $('#msgComposer'),
+  msgForm: $('#msgForm'),
+  msgFormTitle: $('#msgFormTitle'),
+  msgSubmit: $('#msgSubmit'),
+  msgCancel: $('#msgCancel'),
+  msgError: $('#msgError'),
+  mTitle: $('#mTitle'),
+  mBody: $('#mBody'),
+  mNotify: $('#mNotify'),
+  mNotifyRow: $('#mNotifyRow'),
+  calendarView: $('#calendarView'),
+  calPrev: $('#calPrev'),
+  calNext: $('#calNext'),
+  calToday: $('#calToday'),
+  calMonth: $('#calMonth'),
+  calGrid: $('#calGrid'),
+  calDayTitle: $('#calDayTitle'),
+  calDayList: $('#calDayList'),
+  calUpcoming: $('#calUpcoming'),
+  newEvent: $('#newEventBtn'),
+  eventComposer: $('#eventComposer'),
+  eventForm: $('#eventForm'),
+  eventFormTitle: $('#eventFormTitle'),
+  eventSubmit: $('#eventSubmit'),
+  eventCancel: $('#eventCancel'),
+  eventError: $('#eventError'),
+  eTitle: $('#eTitle'),
+  eDate: $('#eDate'),
+  eTime: $('#eTime'),
+  eLocation: $('#eLocation'),
+  eNotes: $('#eNotes'),
+  eNotify: $('#eNotify'),
+  eNotifyRow: $('#eNotifyRow'),
 };
 
 let mode = 'signin';          // 'signin' | 'signup'
@@ -80,7 +119,16 @@ let feedLoaded = false;      // has the prayers listener delivered yet?
 let members = [];             // live member directory
 let roleByUid = {};           // uid -> role ('admin' for moderators)
 let isAdmin = false;          // is the signed-in user a moderator (admin)?
-let canEditList = false;      // may edit the Weekly Prayer List (admin or pastor)
+let isEditor = false;      // church leader (admin or pastor): edits the Weekly
+                              // Prayer List, posts messages, manages the calendar
+let section = 'prayer';       // 'prayer' | 'messages' | 'calendar'
+let announcements = [];       // latest church messages snapshot
+let msgsLoaded = false;
+let unsubMsgs = null;
+let events = [];              // latest calendar snapshot
+let eventsLoaded = false;
+let unsubEvents = null;
+let memberReady = false;      // membership confirmed; safe to attach listeners
 const openComments = new Map(); // prayerId -> { unsub, listEl }
 const expandedCards = new Set(); // prayerIds currently expanded
 const autoExpandedIds = new Set(); // newest cards we've already auto-opened once
@@ -693,7 +741,7 @@ function setListMode(editing) {
   els.listBody.hidden = editing;
   els.listMeta.hidden = editing;
   els.listEditor.hidden = !editing;
-  els.listEdit.hidden = editing || !canEditList;
+  els.listEdit.hidden = editing || !isEditor;
   els.listSave.hidden = !editing;
   els.listCancel.hidden = !editing;
   els.listPrint.hidden = editing;
@@ -763,6 +811,8 @@ function printPrayerList() {
 
 function showListView() {
   els.feedView.hidden = true;
+  els.messagesView.hidden = true;
+  els.calendarView.hidden = true;
   els.listView.hidden = false;
   setListMode(false);
   renderListRead();
@@ -779,10 +829,14 @@ function showListView() {
   }
 }
 
-function leaveListView() {
+function closeListView() {
   if (unsubList) { unsubList(); unsubList = null; }
   els.listView.hidden = true;
-  els.feedView.hidden = false;
+}
+
+function leaveListView() {
+  closeListView();
+  showSection('prayer');
 }
 
 els.listNavBtn.addEventListener('click', () => { closeMenu(); showListView(); });
@@ -809,6 +863,395 @@ els.listSave.addEventListener('click', async () => {
   }
 });
 
+/* ── sections (Prayer / Messages / Calendar) ──────────────────────────── */
+
+const SECTIONS = ['prayer', 'messages', 'calendar'];
+
+function sectionFromHash() {
+  const h = (location.hash || '').replace('#', '');
+  return SECTIONS.includes(h) ? h : 'prayer';
+}
+
+// Deep link for push notifications, e.g. https://prayer.fbckjv.app/#messages
+function sectionUrl(name) {
+  return location.origin + location.pathname + '#' + name;
+}
+
+function showSection(name) {
+  if (!SECTIONS.includes(name)) name = 'prayer';
+  section = name;
+  if (!els.listView.hidden) closeListView();
+  els.feedView.hidden = name !== 'prayer';
+  els.messagesView.hidden = name !== 'messages';
+  els.calendarView.hidden = name !== 'calendar';
+  els.mainNav.querySelectorAll('.main-tab').forEach((t) => {
+    const on = t.dataset.section === name;
+    t.classList.toggle('is-active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  const hash = name === 'prayer' ? '' : '#' + name;
+  if (location.hash !== hash) history.replaceState(null, '', location.pathname + location.search + hash);
+  if (name === 'messages') { markMessagesSeen(); renderMessages(); }
+  if (name === 'calendar') { startEvents(); renderCalendar(); }
+  window.scrollTo(0, 0);
+}
+
+els.mainNav.addEventListener('click', (e) => {
+  const btn = e.target.closest('.main-tab');
+  if (btn) showSection(btn.dataset.section);
+});
+// Tapping a notification while the app is already open changes only the hash.
+window.addEventListener('hashchange', () => {
+  if (currentUser && !els.topbar.hidden) showSection(sectionFromHash());
+});
+
+function nameOf(uid) {
+  const m = members.find((x) => x.id === uid);
+  return (m && m.name) || 'A member';
+}
+
+/* ── church messages ──────────────────────────────────────────────────── */
+
+const MSG_SEEN = 'fbcprayer_msgs_seen';
+
+function tsMillis(ts) {
+  return ts && ts.toMillis ? ts.toMillis() : 0;
+}
+
+// Show a dot on the Messages tab when there's a message newer than the last
+// time this device looked (and it isn't one you posted yourself).
+function updateMsgDot() {
+  const uid = currentUser && currentUser.uid;
+  const seen = Number(localStorage.getItem(MSG_SEEN) || 0);
+  const unread = announcements.some((m) => m.uid !== uid && tsMillis(m.createdAt) > seen);
+  els.msgDot.hidden = !unread || section === 'messages';
+}
+
+function markMessagesSeen() {
+  const newest = announcements.reduce((n, m) => Math.max(n, tsMillis(m.createdAt)), 0);
+  const seen = Number(localStorage.getItem(MSG_SEEN) || 0);
+  if (newest > seen) localStorage.setItem(MSG_SEEN, String(newest));
+  updateMsgDot();
+}
+
+function renderMessages() {
+  els.newMsg.hidden = !isEditor;
+  if (els.messagesView.hidden) return;
+  els.msgList.innerHTML = '';
+  if (!msgsLoaded) {
+    els.msgEmpty.hidden = false;
+    els.msgEmpty.innerHTML = '<span class="big">📣</span>Loading messages…';
+    return;
+  }
+  if (!announcements.length) {
+    els.msgEmpty.hidden = false;
+    els.msgEmpty.innerHTML = '<span class="big">📣</span>' +
+      (isEditor ? 'No messages yet. Post one for the church.' : 'No church messages yet.');
+    return;
+  }
+  els.msgEmpty.hidden = true;
+  const frag = document.createDocumentFragment();
+  for (const m of announcements) frag.appendChild(buildMessage(m));
+  els.msgList.appendChild(frag);
+}
+
+function buildMessage(m) {
+  const uid = currentUser && currentUser.uid;
+  const thumbs = Array.isArray(m.thumbsBy) ? m.thumbsBy : [];
+  const on = thumbs.includes(uid);
+
+  const card = el('article', 'card msg-card');
+  const head = el('div', 'msg-head');
+  const author = el('span', 'msg-author', m.author || 'Church office');
+  { const rb = roleBadge(m.uid); if (rb) author.appendChild(rb); }
+  head.appendChild(author);
+  head.appendChild(el('span', 'msg-time', timeAgo(m.createdAt) + (m.editedAt ? ' · edited' : '')));
+  card.appendChild(head);
+
+  if (m.title) card.appendChild(el('h3', 'msg-title', m.title));
+  card.appendChild(el('p', 'card-body', m.body || ''));
+
+  const actions = el('div', 'card-actions');
+  const tb = el('button', 'pray-btn thumbs-btn' + (on ? ' is-on' : ''));
+  tb.type = 'button';
+  tb.innerHTML = `<span aria-hidden="true">👍</span> <span class="pray-count">${thumbs.length || ''}</span>`;
+  tb.setAttribute('aria-label', on ? 'Remove your thumbs up' : 'Thumbs up');
+  if (thumbs.length) tb.title = thumbs.map(nameOf).join(', ');
+  tb.addEventListener('click', async () => {
+    if (!uid) return;
+    tb.disabled = true;
+    try { await store.toggleThumbs(m.id, uid, on); }
+    catch (_) {} finally { tb.disabled = false; }
+  });
+  actions.appendChild(tb);
+  if (thumbs.length) {
+    actions.appendChild(el('span', 'thumbs-who', snippet(thumbs.map(nameOf).join(', '), 60)));
+  }
+  actions.appendChild(el('span', 'spacer'));
+
+  if (isEditor) {
+    const edit = el('button', 'link-btn', 'Edit');
+    edit.type = 'button';
+    edit.addEventListener('click', () => openMsgComposer(m));
+    actions.appendChild(edit);
+    const del = el('button', 'link-btn danger', 'Delete');
+    del.type = 'button';
+    del.addEventListener('click', async () => {
+      if (!confirm('Delete this message for everyone?')) return;
+      try { await store.deleteAnnouncement(m.id); } catch (_) { alert('Could not delete this message.'); }
+    });
+    actions.appendChild(del);
+  }
+  card.appendChild(actions);
+  return card;
+}
+
+let editingMsgId = null;
+
+function openMsgComposer(m) {
+  showError(els.msgError, '');
+  els.msgForm.reset();
+  editingMsgId = m ? m.id : null;
+  els.mNotifyRow.hidden = !!m; // edits never re-notify
+  if (m) {
+    els.msgFormTitle.textContent = 'Edit message';
+    els.msgSubmit.textContent = 'Save changes';
+    els.mTitle.value = m.title || '';
+    els.mBody.value = m.body || '';
+  } else {
+    els.msgFormTitle.textContent = 'Post a message';
+    els.msgSubmit.textContent = 'Post';
+    els.mNotify.checked = true;
+  }
+  if (typeof els.msgComposer.showModal === 'function') els.msgComposer.showModal();
+}
+
+els.newMsg.addEventListener('click', () => openMsgComposer(null));
+els.msgCancel.addEventListener('click', () => els.msgComposer.close());
+
+els.msgForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = els.mBody.value.trim();
+  if (!body) { showError(els.msgError, 'Please write your message.'); return; }
+  const data = { title: els.mTitle.value, body };
+  els.msgSubmit.disabled = true;
+  try {
+    if (editingMsgId) {
+      await store.updateAnnouncement(editingMsgId, data);
+    } else {
+      await store.postAnnouncement(data);
+      if (els.mNotify.checked) notify.sendPush('announcement', sectionUrl('messages'));
+    }
+    els.msgComposer.close();
+  } catch (err) {
+    showError(els.msgError, (editingMsgId ? 'Could not save. ' : 'Could not post. ') + friendlyAuthError(err));
+  } finally {
+    els.msgSubmit.disabled = false;
+  }
+});
+
+/* ── church calendar ──────────────────────────────────────────────────── */
+
+const pad2 = (n) => String(n).padStart(2, '0');
+// Local-date 'YYYY-MM-DD' (never UTC, so "today" is the church's today).
+function ymd(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function parseYmd(s) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+function fmtDayLong(s) {
+  return parseYmd(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+let calSelected = ymd(new Date());
+
+function eventsOn(date) {
+  return events.filter((ev) => ev.date === date)
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+}
+
+// Start watching the calendar the first time it's opened. Only events from
+// about a year back onward are loaded, which keeps reads small.
+function startEvents() {
+  if (unsubEvents || !currentUser || !memberReady) return;
+  const since = new Date(); since.setFullYear(since.getFullYear() - 1);
+  const user = currentUser;
+  unsubEvents = () => {}; // placeholder so we don't double-subscribe
+  store.watchEvents(ymd(since), (items) => {
+    eventsLoaded = true;
+    events = items;
+    renderCalendar();
+  }, () => { eventsLoaded = true; renderCalendar(); })
+    .then((u) => {
+      if (currentUser !== user) u(); // signed out before it resolved
+      else unsubEvents = u;
+    });
+}
+
+function renderCalendar() {
+  els.newEvent.hidden = !isEditor;
+  if (els.calendarView.hidden) return;
+  const today = ymd(new Date());
+  els.calMonth.textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const withEvents = new Set(events.map((ev) => ev.date));
+  els.calGrid.innerHTML = '';
+  for (const w of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) els.calGrid.appendChild(el('div', 'cal-wd', w));
+  const start = new Date(calMonth);
+  start.setDate(1 - start.getDay()); // back up to Sunday
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (i >= 35 && d.getMonth() !== calMonth.getMonth()) break; // drop an all-next-month row
+    const key = ymd(d);
+    const cell = el('button', 'cal-day');
+    cell.type = 'button';
+    if (d.getMonth() !== calMonth.getMonth()) cell.classList.add('is-out');
+    if (key === today) cell.classList.add('is-today');
+    if (key === calSelected) cell.classList.add('is-selected');
+    cell.appendChild(el('span', 'cal-num', String(d.getDate())));
+    if (withEvents.has(key)) {
+      cell.classList.add('has-events');
+      cell.appendChild(el('span', 'cal-dot'));
+    }
+    cell.setAttribute('aria-label', fmtDayLong(key) + (withEvents.has(key) ? ', has events' : ''));
+    cell.addEventListener('click', () => {
+      calSelected = key;
+      if (d.getMonth() !== calMonth.getMonth()) calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      renderCalendar();
+    });
+    els.calGrid.appendChild(cell);
+  }
+
+  // Selected day
+  els.calDayTitle.textContent = calSelected === today ? 'Today · ' + fmtDayLong(calSelected) : fmtDayLong(calSelected);
+  els.calDayList.innerHTML = '';
+  const dayEvents = eventsOn(calSelected);
+  if (dayEvents.length) for (const ev of dayEvents) els.calDayList.appendChild(buildEvent(ev, false));
+  else els.calDayList.appendChild(el('p', 'event-empty', eventsLoaded ? 'Nothing on the calendar this day.' : 'Loading…'));
+
+  // Coming up (today onward)
+  els.calUpcoming.innerHTML = '';
+  const upcoming = events.filter((ev) => ev.date >= today)
+    .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+    .slice(0, 10);
+  if (upcoming.length) for (const ev of upcoming) els.calUpcoming.appendChild(buildEvent(ev, true));
+  else els.calUpcoming.appendChild(el('p', 'event-empty', eventsLoaded ? 'No upcoming events yet.' : 'Loading…'));
+}
+
+function buildEvent(ev, showDate) {
+  const row = el('div', 'event');
+  if (showDate) {
+    const d = parseYmd(ev.date);
+    const badge = el('button', 'event-date');
+    badge.type = 'button';
+    badge.title = 'Show on calendar';
+    badge.appendChild(el('span', 'event-mon', d.toLocaleDateString(undefined, { month: 'short' })));
+    badge.appendChild(el('span', 'event-dom', String(d.getDate())));
+    badge.addEventListener('click', () => {
+      calSelected = ev.date;
+      calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      renderCalendar();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    row.appendChild(badge);
+  }
+  const info = el('div', 'event-info');
+  info.appendChild(el('div', 'event-title', ev.title || 'Event'));
+  const sub = [];
+  if (showDate) sub.push(parseYmd(ev.date).toLocaleDateString(undefined, { weekday: 'short' }));
+  if (ev.time) sub.push(fmtTime(ev.time));
+  if (ev.location) sub.push(ev.location);
+  if (sub.length) info.appendChild(el('div', 'event-sub', sub.join(' · ')));
+  if (ev.notes) info.appendChild(el('div', 'event-notes', ev.notes));
+  if (isEditor) {
+    const acts = el('div', 'event-actions');
+    const edit = el('button', 'link-btn', 'Edit');
+    edit.type = 'button';
+    edit.addEventListener('click', () => openEventComposer(ev, null));
+    acts.appendChild(edit);
+    const del = el('button', 'link-btn danger', 'Delete');
+    del.type = 'button';
+    del.addEventListener('click', async () => {
+      if (!confirm(`Remove “${ev.title}” from the calendar?`)) return;
+      try { await store.deleteEvent(ev.id); } catch (_) { alert('Could not delete this event.'); }
+    });
+    acts.appendChild(del);
+    info.appendChild(acts);
+  }
+  row.appendChild(info);
+  return row;
+}
+
+let editingEventId = null;
+
+function openEventComposer(ev, date) {
+  showError(els.eventError, '');
+  els.eventForm.reset();
+  editingEventId = ev ? ev.id : null;
+  els.eNotifyRow.hidden = !!ev; // edits never re-notify
+  if (ev) {
+    els.eventFormTitle.textContent = 'Edit event';
+    els.eTitle.value = ev.title || '';
+    els.eDate.value = ev.date || '';
+    els.eTime.value = ev.time || '';
+    els.eLocation.value = ev.location || '';
+    els.eNotes.value = ev.notes || '';
+  } else {
+    els.eventFormTitle.textContent = 'Add an event';
+    els.eDate.value = date || calSelected;
+  }
+  if (typeof els.eventComposer.showModal === 'function') els.eventComposer.showModal();
+}
+
+els.calPrev.addEventListener('click', () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+els.calNext.addEventListener('click', () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
+  renderCalendar();
+});
+els.calToday.addEventListener('click', () => {
+  const d = new Date();
+  calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  calSelected = ymd(d);
+  renderCalendar();
+});
+els.newEvent.addEventListener('click', () => openEventComposer(null, calSelected));
+els.eventCancel.addEventListener('click', () => els.eventComposer.close());
+
+els.eventForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = els.eTitle.value.trim();
+  const date = els.eDate.value;
+  if (!title) { showError(els.eventError, 'Please name the event.'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showError(els.eventError, 'Please pick a date.'); return; }
+  const data = { title, date, time: els.eTime.value, location: els.eLocation.value, notes: els.eNotes.value };
+  els.eventSubmit.disabled = true;
+  try {
+    await store.saveEvent(editingEventId, data);
+    if (!editingEventId && els.eNotify.checked) notify.sendPush('new_event', sectionUrl('calendar'));
+    // Jump the calendar to the saved date so it's easy to see.
+    const d = parseYmd(date);
+    calSelected = date;
+    calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    renderCalendar();
+    els.eventComposer.close();
+  } catch (err) {
+    showError(els.eventError, 'Could not save. ' + friendlyAuthError(err));
+  } finally {
+    els.eventSubmit.disabled = false;
+  }
+});
+
 /* ── notifications opt-in ─────────────────────────────────────────────── */
 
 const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed';
@@ -824,7 +1267,7 @@ function updateBell() {
   els.notifyMenuBtn.hidden = false;
   const on = notifGranted();
   els.notifyMenuBtn.classList.toggle('on', on);
-  els.notifyMenuBtn.textContent = on ? '🔔 Prayer alerts: On' : '🔔 Turn on prayer alerts';
+  els.notifyMenuBtn.textContent = on ? '🔔 Alerts: On' : '🔔 Turn on alerts';
 }
 
 async function setupNotifications(uid) {
@@ -853,7 +1296,7 @@ els.notifyMenuBtn.addEventListener('click', async () => {
   els.notifyBar.hidden = true;
   updateBell();
   if (ok) {
-    alert('✅ Prayer alerts are on for this device.');
+    alert('✅ Alerts are on for this device.');
   } else if (notifGranted()) {
     alert('Permission is granted, but the subscription didn’t finish registering. Please fully close and reopen the app, then try once more.');
   }
@@ -876,6 +1319,8 @@ els.notifyDismiss.addEventListener('click', () => {
 function showAuthView() {
   els.topbar.hidden = true;
   els.feedView.hidden = true;
+  els.messagesView.hidden = true;
+  els.calendarView.hidden = true;
   els.authView.hidden = false;
 }
 
@@ -901,7 +1346,7 @@ async function showFeedView() {
   const user = currentUser;
   els.authView.hidden = true;
   els.topbar.hidden = false;
-  els.feedView.hidden = false;
+  showSection(sectionFromHash());
   els.feedEmpty.hidden = false;
   els.feedEmpty.innerHTML = '<span class="big">🕊️</span>Loading the prayer chain…';
   feedLoaded = false;
@@ -927,9 +1372,11 @@ async function showFeedView() {
   if (currentUser !== user) return; // signed out / changed while waiting
   if (!prof && lastErr) { feedProblem(lastErr, 'We couldn’t confirm your membership.'); return; }
 
+  memberReady = true;
   isAdmin = !!(prof && prof.role === 'admin');
-  canEditList = isAdmin || (prof && prof.role === 'pastor');
+  isEditor = isAdmin || (prof && prof.role === 'pastor');
   setupNotifications(user.uid);
+  if (section === 'calendar') { startEvents(); renderCalendar(); }
   try {
     if (!unsubPrayers) {
       unsubPrayers = await store.watchPrayers(
@@ -950,6 +1397,18 @@ async function showFeedView() {
         (err) => feedProblem(err, 'Couldn’t load the prayer chain.')
       );
     }
+    if (!unsubMsgs) {
+      unsubMsgs = await store.watchAnnouncements(
+        (items) => {
+          msgsLoaded = true;
+          announcements = items;
+          if (section === 'messages' && !els.messagesView.hidden) markMessagesSeen();
+          else updateMsgDot();
+          renderMessages();
+        },
+        () => { msgsLoaded = true; renderMessages(); }
+      );
+    }
     if (!unsubMembers) {
       unsubMembers = await store.watchMembers(
         (list) => {
@@ -959,9 +1418,11 @@ async function showFeedView() {
           for (const m of list) if (!m.removed) roleByUid[m.id] = m.role;
           // A moderator's role could change live; keep our own flag in sync.
           isAdmin = roleByUid[user.uid] === 'admin';
-          canEditList = isAdmin || roleByUid[user.uid] === 'pastor';
+          isEditor = isAdmin || roleByUid[user.uid] === 'pastor';
           if (!els.listView.hidden) setListMode(!els.listEditor.hidden);
           renderFeed();
+          renderMessages();
+          renderCalendar();
           if (els.membersDialog.open) renderMembers();
         },
         () => {}
@@ -991,6 +1452,12 @@ async function boot() {
         if (unsubPrayers) { unsubPrayers(); unsubPrayers = null; }
         if (unsubMembers) { unsubMembers(); unsubMembers = null; }
         if (unsubList) { unsubList(); unsubList = null; }
+        if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+        if (unsubEvents) { unsubEvents(); unsubEvents = null; }
+        for (const d of [els.composer, els.msgComposer, els.eventComposer]) if (d.open) d.close();
+        announcements = []; msgsLoaded = false;
+        events = []; eventsLoaded = false; memberReady = false;
+        els.msgDot.hidden = true;
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
         if (els.aboutDialog.open) els.aboutDialog.close();
@@ -1002,7 +1469,7 @@ async function boot() {
         members = [];
         roleByUid = {};
         isAdmin = false;
-        canEditList = false;
+        isEditor = false;
         els.authSubmit.disabled = false;
         setMode(mode);
         showAuthView();
