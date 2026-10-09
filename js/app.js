@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 26)';
+const APP_VERSION = '1.1 (build 27)';
 const BASE_TITLE = document.title;
 
 const els = {
