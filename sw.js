@@ -9,7 +9,7 @@ try {
   importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 } catch (e) { /* offline or not set up yet — ignore */ }
 
-const CACHE = 'prayer-chain-v29';
+const CACHE = 'prayer-chain-v30';
 const SHELL = [
   './',
   './index.html',
@@ -47,9 +47,12 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return; // let Firebase & CDN hit the network
 
   if (req.mode === 'navigate') {
-    // Network-first for the page so new deploys show up promptly.
+    // Network-first for the page so new deploys show up promptly. `no-cache`
+    // makes the browser check with the server (a tiny 304 if unchanged)
+    // instead of reusing its own HTTP-cached copy — GitHub Pages allows
+    // browsers to keep files for 10 minutes, which hid fresh deploys.
     e.respondWith(
-      fetch(req).then((res) => {
+      fetch(req, { cache: 'no-cache' }).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put('./index.html', copy));
         return res;
@@ -63,7 +66,7 @@ self.addEventListener('fetch', (e) => {
   // cache when offline. Images and other static assets stay cache-first below.
   if (/\.(?:js|css|html)$/.test(url.pathname)) {
     e.respondWith(
-      fetch(req).then((res) => {
+      fetch(req, { cache: 'no-cache' }).then((res) => {
         if (res && res.ok) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
