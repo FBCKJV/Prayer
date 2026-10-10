@@ -312,6 +312,7 @@ export async function postAnnouncement({ title, body, event }) {
     ...annEventFields(event), eventId,
   });
   await batch.commit();
+  return annRef.id;
 }
 
 // Edit a message and keep its calendar date in step: add, change or remove it.

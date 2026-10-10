@@ -7,8 +7,8 @@
  * caller is a real member, then tells OneSignal to notify everyone.
  *
  * It never trusts client-supplied text — it builds the message itself from the
- * member's name, so prayer details never leave the app and nobody can push
- * arbitrary content.
+ * member's name (and, for a church message, the title read from Firestore),
+ * so prayer details never leave the app and nobody can push arbitrary content.
  *
  * ── Deploy (all in the Cloudflare dashboard) ─────────────────────────────────
  *  1. Workers & Pages → Create → Worker. Name it e.g. "prayer-notify".
@@ -36,7 +36,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { return json({ error: 'bad-json' }, 400, cors); }
 
-    const { idToken, type, url, eventDate } = body || {};
+    const { idToken, type, url, eventDate, announcementId } = body || {};
     if (!idToken) return json({ error: 'missing-token' }, 400, cors);
     if (!COPY[type]) return json({ error: 'bad-type' }, 400, cors);
 
@@ -68,12 +68,27 @@ export default {
       return json({ error: 'not-a-leader' }, 403, cors);
     }
 
-    // Build the message server-side (never from the client). A message with a
-    // calendar date names the event's day — accepted only as a strict YYYY-MM-DD and
-    // re-formatted here, so no client text gets through.
-    const when = typeof eventDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(eventDate)
-      ? fmtDate(new Date(eventDate + 'T12:00:00Z'), 'UTC') : '';
-    const copy = COPY[type](name, when);
+    // Build the message server-side (never from client text). For a church
+    // message we read the message itself from Firestore — with the caller's
+    // own token — and use its title only if the caller wrote it and just
+    // posted it. A calendar date is accepted only as a strict YYYY-MM-DD.
+    let title = '';
+    let date = typeof eventDate === 'string' ? eventDate : '';
+    if (type === 'announcement' && typeof announcementId === 'string' && /^[A-Za-z0-9]{1,40}$/.test(announcementId)) {
+      const annRes = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/announcements/${announcementId}`,
+        { headers: { Authorization: `Bearer ${idToken}` } });
+      const ann = annRes.ok ? await annRes.json().catch(() => ({})) : {};
+      const f = ann.fields || {};
+      const posted = f.createdAt && f.createdAt.timestampValue ? Date.parse(f.createdAt.timestampValue) : 0;
+      if (f.uid && f.uid.stringValue === uid && Date.now() - posted < 10 * 60 * 1000) {
+        title = ((f.title && f.title.stringValue) || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        date = (f.eventDate && f.eventDate.stringValue) || '';
+      } else {
+        console.log(`[notify] announcement ${announcementId} not used (status=${annRes.status})`);
+      }
+    }
+    const when = /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtDate(new Date(date + 'T12:00:00Z'), 'UTC') : '';
+    const copy = COPY[type](name, when, title);
 
     // Only deep-link back into our own app (e.g. /#messages), never elsewhere.
     const home = env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== '*' ? env.ALLOW_ORIGIN : 'https://prayer.fbckjv.app';
@@ -105,10 +120,13 @@ export default {
 const COPY = {
   new_prayer: (name) => ({ heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` }),
   answered: (name) => ({ heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }),
-  announcement: (name, when) => ({
-    heading: '📣 Church message',
-    content: when ? `${name} posted about an event on ${when}.` : `${name} posted a message for the church.`,
-  }),
+  // "📣 Potluck coming up Nov 1!" / "From Pastor Dan · Sun, Nov 1 · Tap to read"
+  announcement: (name, when, title) => (title
+    ? { heading: `📣 ${title}`, content: `From ${name}${when ? ' · ' + when : ''} · Tap to read` }
+    : {
+      heading: '📣 Church message',
+      content: when ? `${name} posted about an event on ${when}.` : `${name} posted a message for the church.`,
+    }),
   new_event: (name, when) => ({
     heading: '📅 New on the calendar',
     content: when ? `${name} added an event on ${when}.` : `${name} added a date to the church calendar.`,
