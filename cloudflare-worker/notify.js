@@ -61,15 +61,15 @@ export default {
     const name = (doc.fields && doc.fields.name && doc.fields.name.stringValue) || 'A member';
     const role = (doc.fields && doc.fields.role && doc.fields.role.stringValue) || '';
 
-    // Church messages and calendar alerts come only from the pastor or a
-    // moderator — the same people the Firestore rules let post them.
+    // Church messages come only from church leaders — the same people the
+    // Firestore rules let post them.
     if (LEADER_ONLY.includes(type) && !LEADER_ROLES.includes(role)) {
       console.log(`[notify] leader-only type=${type} refused for uid=${uid} role=${role || 'none'}`);
       return json({ error: 'not-a-leader' }, 403, cors);
     }
 
-    // Build the message server-side (never from the client). A calendar alert
-    // names the event's day — accepted only as a strict YYYY-MM-DD and
+    // Build the message server-side (never from the client). A message with a
+    // calendar date names the event's day — accepted only as a strict YYYY-MM-DD and
     // re-formatted here, so no client text gets through.
     const when = typeof eventDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(eventDate)
       ? fmtDate(new Date(eventDate + 'T12:00:00Z'), 'UTC') : '';
@@ -105,7 +105,10 @@ export default {
 const COPY = {
   new_prayer: (name) => ({ heading: '🙏 New prayer request', content: `${name} shared a prayer request. Tap to pray.` }),
   answered: (name) => ({ heading: '🎉 Answered prayer', content: `${name} marked a prayer answered.` }),
-  announcement: (name) => ({ heading: '📣 Church message', content: `${name} posted a message for the church.` }),
+  announcement: (name, when) => ({
+    heading: '📣 Church message',
+    content: when ? `${name} posted about an event on ${when}.` : `${name} posted a message for the church.`,
+  }),
   new_event: (name, when) => ({
     heading: '📅 New on the calendar',
     content: when ? `${name} added an event on ${when}.` : `${name} added a date to the church calendar.`,
