@@ -96,8 +96,8 @@ export async function promptEnable() {
 // Ask the Worker to notify everyone. type is 'new_prayer' | 'answered' |
 // 'announcement' | 'new_event' (the last two: pastor & moderators only).
 // The Worker builds the wording itself; we only send the token + type.
-// extra: { eventDate: 'YYYY-MM-DD' } for 'new_event' (the Worker checks the
-// format and writes the date into the alert itself).
+// extra: { announcementId } for 'announcement' — the Worker looks the message
+// up itself to show its title, so no text is ever taken from here.
 export async function sendPush(type, url, extra) {
   if (!NOTIFY_ENDPOINT) return;
   let idToken;

@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 30)';
+const APP_VERSION = '1.1 (build 31)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -1127,10 +1127,9 @@ els.msgForm.addEventListener('submit', async (e) => {
     if (editing) {
       await store.updateAnnouncement(editing.id, data, editing.eventId);
     } else {
-      await store.postAnnouncement(data);
-      if (els.mNotify.checked) {
-        notify.sendPush('announcement', sectionUrl('messages'), event ? { eventDate: event.date } : undefined);
-      }
+      const announcementId = await store.postAnnouncement(data);
+      // The Worker reads the title (and any date) from this message itself.
+      if (els.mNotify.checked) notify.sendPush('announcement', sectionUrl('messages'), { announcementId });
     }
     els.msgComposer.close();
   } catch (err) {
