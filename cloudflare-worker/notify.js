@@ -18,6 +18,7 @@
  *       ONESIGNAL_REST_API_KEY = <your OneSignal REST API Key>   (mark as Secret)
  *       FIREBASE_PROJECT_ID    = prayer-circle-f7a8e
  *       ALLOW_ORIGIN           = https://prayer.fbckjv.app
+ *       CHURCH_TZ              = (optional) time zone for quiet hours; default America/New_York
  *  4. Give it a URL: either use the *.workers.dev URL, or add a route/custom
  *     domain like prayer-notify.fbckjv.app (Settings → Domains & Routes).
  *  5. Put that URL in the app at js/notify-config.js → NOTIFY_ENDPOINT.
@@ -108,6 +109,7 @@ export default {
     };
     // Quiet hours: nothing buzzes phones between 8 PM and 8 AM church time.
     // Anything posted then is scheduled by OneSignal for 8 AM.
+    if (env.CHURCH_TZ) CHURCH_TZ = env.CHURCH_TZ;
     const sendAt = nextAllowedTime(new Date());
     if (sendAt) notification.send_after = sendAt.toISOString();
     const { res: osRes, data: osData } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
@@ -143,7 +145,8 @@ const LEADER_ONLY = ['announcement', 'new_event'];
 const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'secretary'];
 
 // Alerts go out only between QUIET_END and QUIET_START (church time).
-const CHURCH_TZ = 'America/New_York';
+// Optional Worker variable CHURCH_TZ overrides the zone.
+let CHURCH_TZ = 'America/New_York';
 const QUIET_START = 20; // 8 PM
 const QUIET_END = 8;    // 8 AM
 

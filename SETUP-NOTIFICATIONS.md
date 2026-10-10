@@ -1,8 +1,10 @@
 # Setup guide — Push notifications
 
-This turns on alerts for **new prayer requests** and **answered prayers**.
-Church messages (and, when the poster ticks the box, new calendar dates) also
-alert everyone — those can only be sent by the pastor or a moderator.
+This turns on alerts for **new prayer requests**, **answered prayers**, and
+**church messages** (only church leaders — admin, pastor, deacon, secretary —
+can send those; a message alert shows the message's title). Calendar-only dates
+never alert. **Quiet hours:** anything posted between 8 PM and 8 AM (Eastern,
+or the Worker's `CHURCH_TZ` variable) is delivered at 8 AM.
 Comments never trigger notifications. Everything is free (OneSignal free tier +
 Cloudflare Workers free tier) — no credit card.
 
@@ -80,6 +82,10 @@ Save, commit, and push. (Or just send me both values and I'll do it.)
 2. From a *different* account or device, post a prayer request.
 3. The first phone should get a **"🙏 New prayer request"** notification.
 4. Mark a request answered → members get a **"🎉 Answered prayer"** alert.
+5. As a leader, post a message with a title → **"📣 [title]"** /
+   "From [name] · Tap to read".
+   After 8 PM the alert waits until 8 AM — check the Worker's **Logs** for
+   `scheduled=` to confirm it was queued.
 
 ### iPhone / iPad note
 
@@ -90,7 +96,7 @@ won't be able to enable notifications — that's an Apple limitation, not a bug.
 
 ## Notes
 
-- Notifications say *who* posted, never the prayer's text — sensitive details
+- Prayer notifications say *who* posted, never the prayer's text — sensitive details
   never appear on a lock screen. The Worker composes the wording itself, so no
   one can push custom messages.
 - Only signed-in members can trigger a notification; the Worker verifies each
