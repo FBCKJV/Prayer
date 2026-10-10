@@ -270,28 +270,77 @@ export async function watchAnnouncements(cb, onError) {
   }, onError);
 }
 
-// Post a message (pastor or moderator, enforced by rules).
-export async function postAnnouncement({ title, body }) {
+// A message can carry one calendar date ("Add to calendar"). The two docs
+// point at each other (announcement.eventId ↔ event.announcementId) and are
+// always written, edited and deleted together in one batch. The message keeps
+// its own copy of the date/time/place so Messages can show it without
+// loading the calendar.
+function eventFields(title, ev) {
+  return {
+    title: title.trim(), date: ev.date, time: ev.time || '',
+    location: (ev.location || '').trim(), notes: '', repeat: '', until: '',
+  };
+}
+function annEventFields(ev) {
+  return ev
+    ? { eventDate: ev.date, eventTime: ev.time || '', eventLocation: (ev.location || '').trim() }
+    : { eventId: '', eventDate: '', eventTime: '', eventLocation: '' };
+}
+
+// Post a message (church leaders, enforced by rules). event: optional
+// { date, time, location } to also put it on the calendar.
+export async function postAnnouncement({ title, body, event }) {
   const { fs, db, authInst } = await init();
   const user = authInst.currentUser;
   const prof = await getProfile(user.uid);
-  await fs.addDoc(fs.collection(db, 'announcements'), {
-    uid: user.uid,
-    author: (prof && prof.name) || 'Church office',
-    title: (title || '').trim(),
-    body: body.trim(),
-    thumbsBy: [],
-    createdAt: fs.serverTimestamp(),
+  const author = (prof && prof.name) || 'Church office';
+  const annRef = fs.doc(fs.collection(db, 'announcements'));
+  const batch = fs.writeBatch(db);
+  let eventId = '';
+  if (event) {
+    const evRef = fs.doc(fs.collection(db, 'events'));
+    eventId = evRef.id;
+    batch.set(evRef, {
+      ...eventFields(title, event), announcementId: annRef.id,
+      uid: user.uid, author, createdAt: fs.serverTimestamp(),
+    });
+  }
+  batch.set(annRef, {
+    uid: user.uid, author,
+    title: (title || '').trim(), body: body.trim(),
+    thumbsBy: [], createdAt: fs.serverTimestamp(),
+    ...annEventFields(event), eventId,
   });
+  await batch.commit();
 }
 
-export async function updateAnnouncement(id, { title, body }) {
-  const { fs, db } = await init();
-  await fs.updateDoc(fs.doc(db, 'announcements', id), {
-    title: (title || '').trim(),
-    body: body.trim(),
-    editedAt: fs.serverTimestamp(),
+// Edit a message and keep its calendar date in step: add, change or remove it.
+// prevEventId: the message's current eventId ('' if none).
+export async function updateAnnouncement(id, { title, body, event }, prevEventId) {
+  const { fs, db, authInst } = await init();
+  const annRef = fs.doc(db, 'announcements', id);
+  const batch = fs.writeBatch(db);
+  let eventId = prevEventId || '';
+  if (event && eventId) {
+    batch.update(fs.doc(db, 'events', eventId), { ...eventFields(title, event), updatedAt: fs.serverTimestamp() });
+  } else if (event) {
+    const user = authInst.currentUser;
+    const prof = await getProfile(user.uid);
+    const evRef = fs.doc(fs.collection(db, 'events'));
+    eventId = evRef.id;
+    batch.set(evRef, {
+      ...eventFields(title, event), announcementId: id,
+      uid: user.uid, author: (prof && prof.name) || 'Church office', createdAt: fs.serverTimestamp(),
+    });
+  } else if (eventId) {
+    batch.delete(fs.doc(db, 'events', eventId));
+    eventId = '';
+  }
+  batch.update(annRef, {
+    title: (title || '').trim(), body: body.trim(), editedAt: fs.serverTimestamp(),
+    ...annEventFields(event), eventId,
   });
+  await batch.commit();
 }
 
 export async function toggleThumbs(id, uid, isOn) {
@@ -301,9 +350,13 @@ export async function toggleThumbs(id, uid, isOn) {
   });
 }
 
-export async function deleteAnnouncement(id) {
+// Deleting a message also removes its calendar date (and vice versa below).
+export async function deleteAnnouncement(id, eventId) {
   const { fs, db } = await init();
-  await fs.deleteDoc(fs.doc(db, 'announcements', id));
+  const batch = fs.writeBatch(db);
+  batch.delete(fs.doc(db, 'announcements', id));
+  if (eventId) batch.delete(fs.doc(db, 'events', eventId));
+  await batch.commit();
 }
 
 /* ── Church calendar (pastor & moderators add dates) ──────────────────── */
@@ -370,9 +423,12 @@ export async function skipEventDate(id, date) {
   });
 }
 
-export async function deleteEvent(id) {
+export async function deleteEvent(id, announcementId) {
   const { fs, db } = await init();
-  await fs.deleteDoc(fs.doc(db, 'events', id));
+  const batch = fs.writeBatch(db);
+  batch.delete(fs.doc(db, 'events', id));
+  if (announcementId) batch.delete(fs.doc(db, 'announcements', announcementId));
+  await batch.commit();
 }
 
 export function currentUid(user) {

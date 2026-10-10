@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 29)';
+const APP_VERSION = '1.1 (build 30)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -83,6 +83,11 @@ const els = {
   mBody: $('#mBody'),
   mNotify: $('#mNotify'),
   mNotifyRow: $('#mNotifyRow'),
+  mCal: $('#mCal'),
+  mCalFields: $('#mCalFields'),
+  mDate: $('#mDate'),
+  mTime: $('#mTime'),
+  mLocation: $('#mLocation'),
   calendarView: $('#calendarView'),
   calPrev: $('#calPrev'),
   calNext: $('#calNext'),
@@ -107,8 +112,6 @@ const els = {
   eRepeat: $('#eRepeat'),
   eUntil: $('#eUntil'),
   eUntilRow: $('#eUntilRow'),
-  eNotify: $('#eNotify'),
-  eNotifyRow: $('#eNotifyRow'),
 };
 
 let mode = 'signin';          // 'signin' | 'signup'
@@ -934,6 +937,24 @@ function nameOf(uid) {
 
 /* ── church messages ──────────────────────────────────────────────────── */
 
+// Jump to a date on the calendar.
+function showOnCalendar(date) {
+  const d = parseYmd(date);
+  calSelected = date;
+  calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  showSection('calendar');
+}
+
+// Jump to a message and briefly highlight it.
+function showMessage(id) {
+  showSection('messages');
+  const card = els.msgList.querySelector(`[data-msg-id="${id}"]`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('flash');
+  setTimeout(() => card.classList.remove('flash'), 1600);
+}
+
 const MSG_SEEN = 'fbcprayer_msgs_seen';
 
 function tsMillis(ts) {
@@ -983,6 +1004,9 @@ function buildMessage(m) {
   const on = thumbs.includes(uid);
 
   const card = el('article', 'card msg-card');
+  card.dataset.msgId = m.id;
+  const passed = !!m.eventDate && m.eventDate < ymd(new Date());
+  if (passed) card.classList.add('is-passed');
   const head = el('div', 'msg-head');
   const author = el('span', 'msg-author', m.author || 'Church office');
   { const rb = roleBadge(m.uid); if (rb) author.appendChild(rb); }
@@ -996,6 +1020,21 @@ function buildMessage(m) {
 
   if (m.title) card.appendChild(el('h3', 'msg-title', m.title));
   card.appendChild(el('p', 'card-body', m.body || ''));
+
+  // Linked calendar date: "📅 Sun, Nov 1 · 12:00 PM · Fellowship hall"
+  if (m.eventDate) {
+    const strip = el('div', 'msg-event');
+    const bits = [parseYmd(m.eventDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })];
+    if (m.eventTime) bits.push(fmtTime(m.eventTime));
+    if (m.eventLocation) bits.push(m.eventLocation);
+    strip.appendChild(el('span', null, '📅 ' + bits.join(' · ')));
+    if (passed) strip.appendChild(el('span', 'passed-tag', 'Passed'));
+    const view = el('button', 'link-btn', 'View on calendar');
+    view.type = 'button';
+    view.addEventListener('click', () => showOnCalendar(m.eventDate));
+    strip.appendChild(view);
+    card.appendChild(strip);
+  }
 
   const actions = el('div', 'card-actions');
   const tb = el('button', 'pray-btn thumbs-btn' + (on ? ' is-on' : ''));
@@ -1023,8 +1062,11 @@ function buildMessage(m) {
     const del = el('button', 'link-btn danger', 'Delete');
     del.type = 'button';
     del.addEventListener('click', async () => {
-      if (!confirm('Delete this message for everyone?')) return;
-      try { await store.deleteAnnouncement(m.id); } catch (_) { alert('Could not delete this message.'); }
+      const msg = m.eventId
+        ? 'Delete this message for everyone? This also removes it from the calendar.'
+        : 'Delete this message for everyone?';
+      if (!confirm(msg)) return;
+      try { await store.deleteAnnouncement(m.id, m.eventId); } catch (_) { alert('Could not delete this message.'); }
     });
     actions.appendChild(del);
   }
@@ -1032,23 +1074,34 @@ function buildMessage(m) {
   return card;
 }
 
-let editingMsgId = null;
+let editingMsg = null;
+
+function syncMsgCal() {
+  els.mCalFields.hidden = !els.mCal.checked;
+  els.mDate.required = els.mCal.checked;
+}
+els.mCal.addEventListener('change', syncMsgCal);
 
 function openMsgComposer(m) {
   showError(els.msgError, '');
   els.msgForm.reset();
-  editingMsgId = m ? m.id : null;
+  editingMsg = m || null;
   els.mNotifyRow.hidden = !!m; // edits never re-notify
   if (m) {
     els.msgFormTitle.textContent = 'Edit message';
     els.msgSubmit.textContent = 'Save changes';
     els.mTitle.value = m.title || '';
     els.mBody.value = m.body || '';
+    els.mCal.checked = !!m.eventDate;
+    els.mDate.value = m.eventDate || '';
+    els.mTime.value = m.eventTime || '';
+    els.mLocation.value = m.eventLocation || '';
   } else {
     els.msgFormTitle.textContent = 'Post a message';
     els.msgSubmit.textContent = 'Post';
     els.mNotify.checked = true;
   }
+  syncMsgCal();
   if (typeof els.msgComposer.showModal === 'function') els.msgComposer.showModal();
 }
 
@@ -1059,18 +1112,29 @@ els.msgForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = els.mBody.value.trim();
   if (!body) { showError(els.msgError, 'Please write your message.'); return; }
-  const data = { title: els.mTitle.value, body };
+  let event = null;
+  if (els.mCal.checked) {
+    if (!els.mTitle.value.trim()) { showError(els.msgError, 'Add a title — it’s the name shown on the calendar.'); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(els.mDate.value)) { showError(els.msgError, 'Pick the date for the calendar.'); return; }
+    event = { date: els.mDate.value, time: els.mTime.value, location: els.mLocation.value };
+  }
+  const data = { title: els.mTitle.value, body, event };
+  const editing = editingMsg;
+  if (editing && editing.eventId && !event &&
+      !confirm('Remove this from the calendar? The message stays.')) return;
   els.msgSubmit.disabled = true;
   try {
-    if (editingMsgId) {
-      await store.updateAnnouncement(editingMsgId, data);
+    if (editing) {
+      await store.updateAnnouncement(editing.id, data, editing.eventId);
     } else {
       await store.postAnnouncement(data);
-      if (els.mNotify.checked) notify.sendPush('announcement', sectionUrl('messages'));
+      if (els.mNotify.checked) {
+        notify.sendPush('announcement', sectionUrl('messages'), event ? { eventDate: event.date } : undefined);
+      }
     }
     els.msgComposer.close();
   } catch (err) {
-    showError(els.msgError, (editingMsgId ? 'Could not save. ' : 'Could not post. ') + friendlyAuthError(err));
+    showError(els.msgError, (editing ? 'Could not save. ' : 'Could not post. ') + friendlyAuthError(err));
   } finally {
     els.msgSubmit.disabled = false;
   }
@@ -1289,12 +1353,27 @@ function buildEvent(ev, showDate) {
     info.appendChild(el('div', 'event-repeat', '🔁 ' + repeatLabel(ev.repeat, ev.seriesDate || ev.date) + until));
   }
   if (ev.notes) info.appendChild(el('div', 'event-notes', ev.notes));
+  if (ev.announcementId) {
+    const tag = el('button', 'announced-tag', '📣 Announced — see message');
+    tag.type = 'button';
+    tag.addEventListener('click', () => showMessage(ev.announcementId));
+    info.appendChild(tag);
+  }
   if (isEditor) {
     const acts = el('div', 'event-actions');
     const series = !!ev.repeat;
     const edit = el('button', 'link-btn', series ? 'Edit series' : 'Edit');
     edit.type = 'button';
-    edit.addEventListener('click', () => openEventComposer(events.find((x) => x.id === ev.id) || ev, null));
+    edit.addEventListener('click', () => {
+      // An announced event is edited through its message, so they stay alike.
+      if (ev.announcementId) {
+        const m = announcements.find((a) => a.id === ev.announcementId);
+        if (m) openMsgComposer(m);
+        else alert('This date belongs to a message. Edit it from the 📣 Messages tab.');
+        return;
+      }
+      openEventComposer(events.find((x) => x.id === ev.id) || ev, null);
+    });
     acts.appendChild(edit);
     if (series) {
       const skip = el('button', 'link-btn', 'Skip this date');
@@ -1310,9 +1389,11 @@ function buildEvent(ev, showDate) {
     del.addEventListener('click', async () => {
       const msg = series
         ? `Delete every date of “${ev.title}”? To drop just one date, use “Skip this date” instead.`
-        : `Remove “${ev.title}” from the calendar?`;
+        : ev.announcementId
+          ? `Remove “${ev.title}” from the calendar? This also deletes its message in 📣 Messages.`
+          : `Remove “${ev.title}” from the calendar?`;
       if (!confirm(msg)) return;
-      try { await store.deleteEvent(ev.id); } catch (_) { alert('Could not delete this event.'); }
+      try { await store.deleteEvent(ev.id, ev.announcementId); } catch (_) { alert('Could not delete this event.'); }
     });
     acts.appendChild(del);
     info.appendChild(acts);
@@ -1327,7 +1408,6 @@ function openEventComposer(ev, date) {
   showError(els.eventError, '');
   els.eventForm.reset();
   editingEventId = ev ? ev.id : null;
-  els.eNotifyRow.hidden = !!ev; // edits never re-notify
   if (ev) {
     els.eventFormTitle.textContent = 'Edit event';
     els.eTitle.value = ev.title || '';
@@ -1390,7 +1470,6 @@ els.eventForm.addEventListener('submit', async (e) => {
   els.eventSubmit.disabled = true;
   try {
     await store.saveEvent(editingEventId, data);
-    if (!editingEventId && els.eNotify.checked) notify.sendPush('new_event', sectionUrl('calendar'), { eventDate: date });
     // Jump the calendar to the saved date so it's easy to see.
     const d = parseYmd(date);
     calSelected = date;

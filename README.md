@@ -32,11 +32,12 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
 - **📣 Church messages.** A *Messages* tab where the pastor or a moderator posts
   one-to-everyone messages; members respond with a 👍 (no reply threads, so it
   stays a bulletin board, not a chat). A red dot marks new messages.
-- **📅 Church calendar.** A month view plus a "Coming up" list. The pastor and
-  moderators add dates (time, place, details); everyone can see them.
+- **📅 Church calendar.** A month view plus a "Coming up" list. Leaders announce
+  an event by posting a message with **Add to calendar** (one entry, one alert,
+  kept in sync; marked *Passed* afterwards), or add quiet dates such as
+  birthdays straight on the calendar (no alert). Repeating dates supported.
 - **Push notifications** for new prayer requests, answered prayers, and church
-  messages (never for comments). Calendar dates notify only if the poster ticks
-  "Send a notification". Privacy-first: alerts name *who* posted, not the request text.
+  messages (never for comments). Alerts are held between 8 PM and 8 AM. Privacy-first: alerts name *who* posted, not the request text.
   Optional, off until configured — see [SETUP-NOTIFICATIONS.md](./SETUP-NOTIFICATIONS.md).
   Uses OneSignal + a small Cloudflare Worker (both free, no server/billing).
 

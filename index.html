@@ -234,6 +234,27 @@
       <span>Message</span>
       <textarea id="mBody" rows="6" maxlength="4000" required placeholder="What would you like to tell the church?"></textarea>
     </label>
+    <label class="check">
+      <input id="mCal" type="checkbox" />
+      <span>📅 Add to calendar</span>
+    </label>
+    <div id="mCalFields" class="cal-fields" hidden>
+      <div class="field-row">
+        <label class="field">
+          <span>Date</span>
+          <input id="mDate" type="date" />
+        </label>
+        <label class="field">
+          <span>Time <small>(optional)</small></span>
+          <input id="mTime" type="time" />
+        </label>
+      </div>
+      <label class="field">
+        <span>Where <small>(optional)</small></span>
+        <input id="mLocation" type="text" maxlength="120" placeholder="Fellowship hall" />
+      </label>
+      <small class="hint">The title becomes the calendar entry’s name.</small>
+    </div>
     <label class="check" id="mNotifyRow">
       <input id="mNotify" type="checkbox" checked />
       <span>Send a notification to everyone <small class="quiet-note">(between 8 PM and 8 AM it waits until 8 AM)</small></span>
@@ -288,10 +309,7 @@
       <span>Details <small>(optional)</small></span>
       <textarea id="eNotes" rows="3" maxlength="1000"></textarea>
     </label>
-    <label class="check" id="eNotifyRow">
-      <input id="eNotify" type="checkbox" />
-      <span>Send a notification to everyone <small class="quiet-note">(between 8 PM and 8 AM it waits until 8 AM)</small></span>
-    </label>
+    <p class="hint" id="eQuietNote">Calendar dates are added quietly — no notification. To announce an event, post it from 📣 Messages with “Add to calendar”.</p>
     <p id="eventError" class="form-error" role="alert" hidden></p>
     <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" id="eventCancel">Cancel</button>
