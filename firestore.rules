@@ -36,12 +36,14 @@ service cloud.firestore {
       return isMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    // Church leaders: moderators (admin) and the pastor. They edit the standing
-    // Weekly Prayer List, post church messages, and manage the calendar.
-    // Set role: "pastor" on a user's doc in the console to grant it.
+    // Church leaders: moderators (admin), the pastor, deacons and the church
+    // secretary. They edit the standing Weekly Prayer List, post church
+    // messages, and manage the calendar. Set role to "pastor", "deacon" or
+    // "secretary" on a user's doc in the console to grant it. (Removing
+    // members and deleting others' prayers stays admin-only.)
     function isEditor() {
       return isMember()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor'];
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor', 'deacon', 'secretary'];
     }
     function validInvite(code) {
       return code == get(/databases/$(database)/documents/config/invite).data.code;
