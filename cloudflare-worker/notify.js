@@ -63,7 +63,7 @@ export default {
 
     // Church messages and calendar alerts come only from the pastor or a
     // moderator — the same people the Firestore rules let post them.
-    if (LEADER_ONLY.includes(type) && role !== 'admin' && role !== 'pastor') {
+    if (LEADER_ONLY.includes(type) && !LEADER_ROLES.includes(role)) {
       console.log(`[notify] leader-only type=${type} refused for uid=${uid} role=${role || 'none'}`);
       return json({ error: 'not-a-leader' }, 403, cors);
     }
@@ -91,9 +91,13 @@ export default {
       url: target,
       web_push_topic: type, // collapse duplicates of the same kind
     };
+    // Quiet hours: nothing buzzes phones between 8 PM and 8 AM church time.
+    // Anything posted then is scheduled by OneSignal for 8 AM.
+    const sendAt = nextAllowedTime(new Date());
+    if (sendAt) notification.send_after = sendAt.toISOString();
     const { res: osRes, data: osData } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
-    console.log(`[notify] OneSignal responded status=${osRes.status} body=${JSON.stringify(osData)}`);
-    return json({ ok: osRes.ok, onesignal: osData }, osRes.ok ? 200 : 502, cors);
+    console.log(`[notify] OneSignal responded status=${osRes.status} scheduled=${sendAt ? sendAt.toISOString() : 'now'} body=${JSON.stringify(osData)}`);
+    return json({ ok: osRes.ok, scheduledFor: sendAt ? sendAt.toISOString() : null, onesignal: osData }, osRes.ok ? 200 : 502, cors);
   },
 };
 
@@ -112,8 +116,33 @@ const COPY = {
 function fmtDate(d, timeZone) {
   return d.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' });
 }
-// Types only the pastor or a moderator may send.
+// Types only church leaders may send, and the roles that count as leaders
+// (must match isEditor() in firestore.rules).
 const LEADER_ONLY = ['announcement', 'new_event'];
+const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'secretary'];
+
+// Alerts go out only between QUIET_END and QUIET_START (church time).
+const CHURCH_TZ = 'America/New_York';
+const QUIET_START = 20; // 8 PM
+const QUIET_END = 8;    // 8 AM
+
+// null = send now; otherwise the Date of the next 8 AM in church time.
+function nextAllowedTime(now) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: CHURCH_TZ, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(now).map((x) => [x.type, x.value]));
+  const hour = Number(p.hour);
+  if (hour >= QUIET_END && hour < QUIET_START) return null;
+  // Church-time offset from UTC right now (e.g. -4h in summer, -5h in winter).
+  const wall = Date.UTC(+p.year, +p.month - 1, +p.day, hour, +p.minute, +p.second);
+  const offset = wall - Math.floor(now.getTime() / 1000) * 1000;
+  const day = hour >= QUIET_START ? +p.day + 1 : +p.day; // evening → tomorrow morning
+  const at = new Date(Date.UTC(+p.year, +p.month - 1, day, QUIET_END, 0, 0) - offset);
+  // If the clocks change overnight, nudge so it still lands on 8 AM local.
+  const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: CHURCH_TZ, hourCycle: 'h23', hour: '2-digit' }).format(at));
+  return new Date(at.getTime() + (QUIET_END - h) * 3600000);
+}
 
 // OneSignal changed its auth header format: newer keys use "Key <key>", older
 // REST API keys use "Basic <key>". Try the modern one first, fall back to the

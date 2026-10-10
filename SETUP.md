@@ -110,12 +110,13 @@ the role can't be quietly self-granted:
 
 Repeat for anyone else you want to make a moderator.
 
-### Make someone the pastor
+### Make someone the pastor, a deacon, or the church secretary
 
-Same steps, but set `role` to `pastor`. The pastor gets a **Pastor** badge and,
-like moderators, can edit the Weekly Prayer List, **post church messages** (📣
-Messages tab), and **add/edit calendar dates** (📅 Calendar tab). The pastor
-can't remove members — that stays with moderators.
+Same steps, but set `role` to `pastor`, `deacon`, or `secretary`. They get a
+**Pastor** / **Deacon** / **Secretary** badge and, like moderators, can edit the
+Weekly Prayer List, **post church messages** (📣 Messages tab), and **add/edit
+calendar dates** (📅 Calendar tab). They can't remove members or delete other
+people's prayers — that stays with moderators (`admin`).
 
 ### Rotating / removing members
 

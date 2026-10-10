@@ -116,7 +116,7 @@
       <span aria-hidden="true" style="font-size:1.6rem">🔔</span>
       <div class="grow">
         <div class="it">Turn on alerts</div>
-        <div class="is">Get notified of new prayer requests, answered prayers, and church messages. No alerts for comments.</div>
+        <div class="is">Get notified of new prayer requests, answered prayers, and church messages — only between 8 AM and 8 PM. No alerts for comments.</div>
       </div>
       <button id="notifyBtn" class="btn btn-primary" type="button">Allow</button>
       <button id="notifyDismiss" class="x" type="button" aria-label="Dismiss">×</button>
@@ -236,7 +236,7 @@
     </label>
     <label class="check" id="mNotifyRow">
       <input id="mNotify" type="checkbox" checked />
-      <span>Send a notification to everyone</span>
+      <span>Send a notification to everyone <small class="quiet-note">(between 8 PM and 8 AM it waits until 8 AM)</small></span>
     </label>
     <p id="msgError" class="form-error" role="alert" hidden></p>
     <div class="dialog-actions">
@@ -290,7 +290,7 @@
     </label>
     <label class="check" id="eNotifyRow">
       <input id="eNotify" type="checkbox" />
-      <span>Send a notification to everyone</span>
+      <span>Send a notification to everyone <small class="quiet-note">(between 8 PM and 8 AM it waits until 8 AM)</small></span>
     </label>
     <p id="eventError" class="form-error" role="alert" hidden></p>
     <div class="dialog-actions">

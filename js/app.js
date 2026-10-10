@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 28)';
+const APP_VERSION = '1.1 (build 29)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -142,8 +142,15 @@ function roleBadge(uid) {
   const r = roleByUid[uid];
   if (r === 'admin') return el('span', 'mod-badge', 'Moderator');
   if (r === 'pastor') return el('span', 'mod-badge pastor', 'Pastor');
+  if (r === 'deacon') return el('span', 'mod-badge leader', 'Deacon');
+  if (r === 'secretary') return el('span', 'mod-badge leader', 'Secretary');
   return null;
 }
+
+// Church leaders: may edit the Weekly Prayer List, post messages and manage
+// the calendar (must match isEditor() in firestore.rules and the Worker).
+// Moderating (deleting others' posts, removing members) stays admin-only.
+const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'secretary'];
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 
@@ -1239,13 +1246,14 @@ function renderCalendar() {
   if (dayEvents.length) for (const ev of dayEvents) els.calDayList.appendChild(buildEvent(ev, false));
   else els.calDayList.appendChild(el('p', 'event-empty', eventsLoaded ? 'Nothing on the calendar this day.' : 'Loading…'));
 
-  // Coming up (today onward)
+  // Coming up (tomorrow onward — today's events are already listed above)
   els.calUpcoming.innerHTML = '';
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const horizon = new Date(); horizon.setDate(horizon.getDate() + 120);
   // A repeating series shows once here (its next date) so it can't crowd out
   // everything else; the calendar grid above still shows every date.
   const seen = new Set();
-  const upcoming = occurrences(today, ymd(horizon))
+  const upcoming = occurrences(ymd(tomorrow), ymd(horizon))
     .filter((ev) => !seen.has(ev.id) && seen.add(ev.id))
     .slice(0, 10);
   if (upcoming.length) for (const ev of upcoming) els.calUpcoming.appendChild(buildEvent(ev, true));
@@ -1549,7 +1557,7 @@ async function showFeedView() {
 
   memberReady = true;
   isAdmin = !!(prof && prof.role === 'admin');
-  isEditor = isAdmin || (prof && prof.role === 'pastor');
+  isEditor = !!(prof && LEADER_ROLES.includes(prof.role));
   setupNotifications(user.uid);
   showWhatsNew();
   if (section === 'calendar') { startEvents(); renderCalendar(); }
@@ -1594,7 +1602,7 @@ async function showFeedView() {
           for (const m of list) if (!m.removed) roleByUid[m.id] = m.role;
           // A moderator's role could change live; keep our own flag in sync.
           isAdmin = roleByUid[user.uid] === 'admin';
-          isEditor = isAdmin || roleByUid[user.uid] === 'pastor';
+          isEditor = LEADER_ROLES.includes(roleByUid[user.uid]);
           if (!els.listView.hidden) setListMode(!els.listEditor.hidden);
           renderFeed();
           renderMessages();

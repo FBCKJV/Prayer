@@ -271,6 +271,11 @@ body {
   border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
 }
 .comment-author .mod-badge { font-size: 0.62rem; }
+.mod-badge.leader {
+  background: color-mix(in srgb, var(--answered) 16%, transparent); color: #1f7a52;
+  border-color: color-mix(in srgb, var(--answered) 40%, transparent);
+}
+.quiet-note { display: block; color: var(--muted); font-size: 0.78rem; }
 .mod-badge.pastor {
   background: color-mix(in srgb, #7a5cd0 20%, transparent); color: #5a3fb0;
   border-color: color-mix(in srgb, #7a5cd0 45%, transparent);
