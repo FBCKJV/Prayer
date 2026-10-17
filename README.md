@@ -39,6 +39,10 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
 - **🎂 Birthdays & anniversaries.** Add them one at a time (＋ Add event → Type)
   or import a spreadsheet (CSV: Name, Type, Date). Only month and day are kept.
   Each morning at 8 AM a "🎉 Celebrating today" message goes out for that day.
+- **Easy for everyone.** ⋯ → **Text size** (A / A+ / A++) makes all the words
+  bigger and is remembered on that phone; ⋯ → **❓ How do I…?** answers the common
+  questions in plain words; people without alerts get a friendly "Would you like
+  alerts?" card at most once a week.
 - **Push notifications** for new prayer requests, answered prayers, and church
   messages (never for comments). Alerts are held between 8 PM and 8 AM. Privacy-first: alerts name *who* posted, not the request text.
   Optional, off until configured — see [SETUP-NOTIFICATIONS.md](./SETUP-NOTIFICATIONS.md).

@@ -13,6 +13,11 @@
 <meta name="apple-mobile-web-app-title" content="FBCoPC" />
 <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="./css/style.css" />
+<script>
+  // Text size chosen in the ⋯ menu (Normal / Large / Larger), applied before
+  // the page draws so it never flashes small first.
+  try { var ts = localStorage.getItem('fbcprayer_text_size'); if (ts) document.documentElement.dataset.textSize = ts; } catch (e) {}
+</script>
 
 <div id="app">
   <!-- Header -->
@@ -31,8 +36,17 @@
           <button id="menuBtn" class="btn btn-ghost menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
           <div id="menu" class="menu" role="menu" hidden>
             <button id="notifyMenuBtn" class="menu-item" type="button" role="menuitem" hidden>🔔 Turn on alerts</button>
+            <button id="howBtn" class="menu-item" type="button" role="menuitem">❓ How do I…?</button>
+            <div class="menu-textsize" role="group" aria-label="Text size">
+              <span class="menu-textsize-label">Text size</span>
+              <div class="textsize-btns">
+                <button type="button" class="ts-btn" data-size="" aria-label="Normal text">A</button>
+                <button type="button" class="ts-btn" data-size="large" aria-label="Large text">A+</button>
+                <button type="button" class="ts-btn" data-size="larger" aria-label="Larger text">A++</button>
+              </div>
+            </div>
             <button id="membersBtn" class="menu-item" type="button" role="menuitem">👥 Members</button>
-            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">❓ About &amp; help</button>
+            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">ℹ️ About</button>
             <button id="signOutBtn" class="menu-item" type="button" role="menuitem">↩ Sign out</button>
           </div>
         </div>
@@ -124,11 +138,13 @@
     <div id="notifyBar" class="install-bar" hidden>
       <span aria-hidden="true" style="font-size:1.6rem">🔔</span>
       <div class="grow">
-        <div class="it">Turn on alerts</div>
-        <div class="is">Get notified of new prayer requests, answered prayers, and church messages — only between 8 AM and 8 PM. No alerts for comments.</div>
+        <div class="it">Would you like alerts?</div>
+        <div class="is">Your phone will buzz when someone asks for prayer, a prayer is answered, or the church shares news. Never between 8 PM and 8 AM.</div>
+        <div class="notify-actions">
+          <button id="notifyBtn" class="btn btn-primary" type="button">Yes, turn on alerts</button>
+          <button id="notifyDismiss" class="btn btn-ghost" type="button">Not now</button>
+        </div>
       </div>
-      <button id="notifyBtn" class="btn btn-primary" type="button">Allow</button>
-      <button id="notifyDismiss" class="x" type="button" aria-label="Dismiss">×</button>
     </div>
 
     <div class="feed-tabs" role="tablist" aria-label="Filter prayers">
@@ -392,6 +408,93 @@
       <button type="button" class="btn btn-ghost" id="whatsNewAlerts" hidden>🔔 Turn on alerts</button>
       <button type="button" class="btn btn-primary" id="whatsNewClose">Got it</button>
     </div>
+  </div>
+</dialog>
+
+<!-- "How do I…?" — plain-words help -->
+<dialog id="howDialog" class="dialog">
+  <div class="dialog-form how">
+    <div class="how-head">
+      <h2 class="dialog-title">❓ How do I…?</h2>
+      <button type="button" class="btn btn-ghost" id="howClose">Close</button>
+    </div>
+    <p class="how-intro">Tap a question to see the answer.</p>
+
+    <details>
+      <summary>🙏 Share a prayer request or praise</summary>
+      <ol>
+        <li>Tap the <b>🙏 Prayers &amp; Praise</b> tab at the top.</li>
+        <li>Tap the blue <span class="how-btn">＋ Share a prayer request</span> button.</li>
+        <li>Type your request. For good news, pick <b>Praise / Thanksgiving</b> as the category.</li>
+        <li>Tap <span class="how-btn">Post to the chain</span>.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>🤲 Let someone know I prayed</summary>
+      <ol>
+        <li>Tap a prayer request to open it.</li>
+        <li>Tap <span class="how-btn ghost">🙏 I prayed</span>. They’ll see that someone is praying.</li>
+        <li>To add a kind word, tap <b>💬 Leave encouragement</b>.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>🎉 Share that my prayer was answered</summary>
+      <ol>
+        <li>Open your own prayer request.</li>
+        <li>Tap <b>Mark answered</b>. Everyone gets the good news.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>📣 See church news and events</summary>
+      <ol>
+        <li>Tap <b>📣 Messages</b> for news from the pastor and church leaders. Tap 👍 to say you saw it.</li>
+        <li>Tap <b>📅 Calendar</b> for upcoming events, birthdays and anniversaries.</li>
+        <li>A number like <b>(2)</b> on a tab means there are 2 new things since you last looked.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>🔔 Turn on alerts</summary>
+      <ol>
+        <li>Tap the <b>⋯</b> button at the top right.</li>
+        <li>Tap <b>🔔 Turn on alerts</b>, then tap <b>Allow</b> when your phone asks.</li>
+      </ol>
+      <p class="how-note">On an iPhone, alerts only work after the app is on your home screen (see the next question) and opened from there.</p>
+    </details>
+
+    <details>
+      <summary>📱 Put the app on my home screen</summary>
+      <p class="how-sub">Android (Chrome):</p>
+      <ol>
+        <li>Tap the <b>⋮</b> button at the top right of Chrome.</li>
+        <li>Tap <b>Install app</b> (or <b>Add to Home screen</b> → <b>Install</b>).</li>
+      </ol>
+      <p class="how-sub">iPhone (Safari):</p>
+      <ol>
+        <li>Tap the <b>Share</b> button (a square with an arrow pointing up).</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>🔤 Make the words bigger</summary>
+      <ol>
+        <li>Tap the <b>⋯</b> button at the top right.</li>
+        <li>Under <b>Text size</b>, tap <b>A+</b> or <b>A++</b>. Tap <b>A</b> to go back to normal.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>🔑 I forgot my password</summary>
+      <ol>
+        <li>On the sign-in screen, type your email address.</li>
+        <li>Tap <b>Forgot your password?</b></li>
+        <li>Check your email (and the spam folder) for a link to set a new one.</li>
+      </ol>
+    </details>
   </div>
 </dialog>
 

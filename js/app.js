@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 36)';
+const APP_VERSION = '1.1 (build 37)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -712,6 +712,37 @@ els.membersBtn.addEventListener('click', () => {
   if (typeof els.membersDialog.showModal === 'function') els.membersDialog.showModal();
 });
 els.membersClose.addEventListener('click', () => els.membersDialog.close());
+
+/* ── "How do I…?" help ────────────────────────────────────────────────── */
+
+$('#howBtn').addEventListener('click', () => {
+  closeMenu();
+  const d = $('#howDialog');
+  d.querySelectorAll('details').forEach((x) => (x.open = false));
+  if (typeof d.showModal === 'function') d.showModal();
+});
+$('#howClose').addEventListener('click', () => $('#howDialog').close());
+// Opening one answer closes the others, so the list stays short.
+$('#howDialog').querySelectorAll('details').forEach((det) => det.addEventListener('toggle', () => {
+  if (det.open) $('#howDialog').querySelectorAll('details').forEach((x) => { if (x !== det) x.open = false; });
+}));
+
+/* ── text size (⋯ menu) ───────────────────────────────────────────────── */
+
+const TEXT_SIZE_KEY = 'fbcprayer_text_size';
+function showTextSize() {
+  const cur = document.documentElement.dataset.textSize || '';
+  document.querySelectorAll('.ts-btn').forEach((b) => b.classList.toggle('is-on', b.dataset.size === cur));
+}
+document.querySelectorAll('.ts-btn').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation(); // keep the menu open so they can see the change and try another
+  const size = b.dataset.size;
+  if (size) document.documentElement.dataset.textSize = size;
+  else delete document.documentElement.dataset.textSize;
+  try { if (size) localStorage.setItem(TEXT_SIZE_KEY, size); else localStorage.removeItem(TEXT_SIZE_KEY); } catch (_) {}
+  showTextSize();
+}));
+showTextSize();
 
 /* ── about / help ─────────────────────────────────────────────────────── */
 
@@ -1861,7 +1892,8 @@ els.importSample.addEventListener('click', (e) => {
 
 /* ── notifications opt-in ─────────────────────────────────────────────── */
 
-const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed';
+const NOTIFY_DISMISS = 'fbcprayer_notify_dismissed'; // when "Not now" was last tapped
+const NOTIFY_ASK_AGAIN = 7 * 24 * 3600e3;               // ask again after a week
 
 function notifGranted() {
   return typeof Notification !== 'undefined' && Notification.permission === 'granted';
@@ -1881,7 +1913,11 @@ async function setupNotifications(uid) {
   if (!notify.pushConfigured) return;
   notify.pushLogin(uid); // tie this browser's subscription to the member
   updateBell();
-  if (localStorage.getItem(NOTIFY_DISMISS) || notifGranted()) return;
+  if (notifGranted() || notifBlocked()) return; // on already, or the phone said no for good
+  let last = 0;
+  try { last = Number(localStorage.getItem(NOTIFY_DISMISS)) || 0; } catch (_) {}
+  // Older versions stored '1'; treat that as "asked long ago".
+  if (last > 1 && Date.now() - last < NOTIFY_ASK_AGAIN) return;
   try {
     if (await notify.pushNeedsPermission()) els.notifyBar.hidden = false;
   } catch (_) {}
@@ -1918,7 +1954,7 @@ els.notifyBtn.addEventListener('click', async () => {
 });
 els.notifyDismiss.addEventListener('click', () => {
   els.notifyBar.hidden = true;
-  localStorage.setItem(NOTIFY_DISMISS, '1');
+  try { localStorage.setItem(NOTIFY_DISMISS, String(Date.now())); } catch (_) {}
 });
 
 /* ── one-time "What's new" ─────────────────────────────────────────────── */
@@ -2102,6 +2138,7 @@ async function boot() {
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
         if (els.aboutDialog.open) els.aboutDialog.close();
+        if ($('#howDialog').open) $('#howDialog').close();
         if ($('#whatsNewDialog').open) $('#whatsNewDialog').close();
         els.listView.hidden = true;
         listData = null;
