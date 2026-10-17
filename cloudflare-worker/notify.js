@@ -1,5 +1,5 @@
 /**
- * FBC Prayer Chain — push notification relay (Cloudflare Worker).
+ * FBCoPC — push notification relay (Cloudflare Worker).
  *
  * The app cannot hold the OneSignal secret key (anyone could grab it from the
  * page and spam members), so this tiny Worker holds it instead. The app POSTs
@@ -251,7 +251,7 @@ async function morningGreeting(env) {
   let token;
   try { token = await serviceAccountToken(env.FIREBASE_SA); }
   catch (e) { console.log(`[celebrate] service-account login failed: ${e && e.message}`); return; }
-  const r = await postCelebrations(env, token, { uid: 'church', author: env.APP_NAME || 'FBC Prayer' });
+  const r = await postCelebrations(env, token, { uid: 'church', author: env.APP_NAME || 'FBCoPC' });
   console.log(`[celebrate] cron result ${JSON.stringify(r)}`);
 }
 

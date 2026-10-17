@@ -1,7 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>FBC Prayer Chain</title>
-<meta name="description" content="Faith Baptist Church of Plymouth County — invite-only prayer requests and prayer chain." />
+<title>FBCoPC</title>
+<meta name="description" content="Faith Baptist Church of Plymouth County — prayer requests &amp; praise, church messages, and the church calendar. Invite-only." />
 <meta name="theme-color" content="#52a9f0" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="icon" href="./assets/icons/favicon-32.png" sizes="32x32" />
@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="FBC Prayer" />
+<meta name="apple-mobile-web-app-title" content="FBCoPC" />
 <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="./css/style.css" />
 
@@ -21,12 +21,12 @@
       <div class="brand">
         <img class="brand-mark" src="./assets/logo-display.png" alt="Faith Baptist Church of Plymouth County" />
         <span class="brand-lines">
-          <span class="brand-text">Prayer Chain</span>
+          <span class="brand-text">FBCoPC</span>
           <span class="brand-church">Faith Baptist Church of Plymouth County</span>
         </span>
       </div>
       <div class="topbar-right">
-        <button id="listNavBtn" class="btn btn-ghost list-nav" type="button">📋 Prayer List</button>
+        <button id="listNavBtn" class="btn btn-ghost list-nav" type="button" aria-label="Weekly Prayer List">📋<span class="list-nav-text"> Prayer List</span></button>
         <div class="menu-wrap">
           <button id="menuBtn" class="btn btn-ghost menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
           <div id="menu" class="menu" role="menu" hidden>
@@ -39,9 +39,18 @@
       </div>
     </div>
     <nav class="main-nav" role="tablist" aria-label="Sections">
-      <button class="main-tab is-active" data-section="prayer" type="button" role="tab">🙏 Prayer <span id="countPrayer" class="tab-count" hidden></span></button>
-      <button class="main-tab" data-section="messages" type="button" role="tab">📣 Messages <span id="countMessages" class="tab-count" hidden></span></button>
-      <button class="main-tab" data-section="calendar" type="button" role="tab">📅 Calendar <span id="countCalendar" class="tab-count" hidden></span></button>
+      <button class="main-tab is-active" data-section="prayer" type="button" role="tab">
+        <span class="tab-top"><span class="tab-icon" aria-hidden="true">🙏</span><span id="countPrayer" class="tab-count" hidden></span></span>
+        <span class="tab-label">Prayers &amp; Praise</span>
+      </button>
+      <button class="main-tab" data-section="messages" type="button" role="tab">
+        <span class="tab-top"><span class="tab-icon" aria-hidden="true">📣</span><span id="countMessages" class="tab-count" hidden></span></span>
+        <span class="tab-label">Messages</span>
+      </button>
+      <button class="main-tab" data-section="calendar" type="button" role="tab">
+        <span class="tab-top"><span class="tab-icon" aria-hidden="true">📅</span><span id="countCalendar" class="tab-count" hidden></span></span>
+        <span class="tab-label">Calendar</span>
+      </button>
     </nav>
   </header>
 
@@ -56,7 +65,7 @@
   <main id="authView" class="auth" hidden>
     <div class="auth-card">
       <img class="auth-logo" src="./assets/logo-display.png" alt="Faith Baptist Church of Plymouth County" />
-      <h1 class="auth-title">Prayer Chain</h1>
+      <h1 class="auth-title">FBCoPC</h1>
       <p class="auth-sub">Faith Baptist Church of Plymouth County — a private place for our church family to share requests and pray for one another.</p>
 
       <div class="tabs" role="tablist">
@@ -90,7 +99,7 @@
         <button id="authSubmit" class="btn btn-primary btn-block" type="submit">Sign in</button>
       </form>
     </div>
-    <p class="footer-note">No direct messages. Everything shared here goes to the whole prayer chain.</p>
+    <p class="footer-note">No direct messages. Everything shared here goes to the whole church family.</p>
   </main>
 
   <!-- Feed view -->
@@ -99,7 +108,7 @@
     <div id="installBar" class="install-bar" hidden>
       <img src="./assets/logo-display.png" alt="" />
       <div class="grow">
-        <div class="it">Add Prayer Chain to your home screen</div>
+        <div class="it">Add FBCoPC to your home screen</div>
         <div class="is">Open it like an app — one tap, no browser bar.</div>
       </div>
       <button id="installBtn" class="btn btn-primary" type="button">Add</button>
@@ -367,7 +376,7 @@
 <!-- One-time "What's new" announcement -->
 <dialog id="whatsNewDialog" class="dialog">
   <div class="dialog-form whats-new">
-    <h2 class="dialog-title">✨ What’s new in FBC Prayer</h2>
+    <h2 class="dialog-title">✨ What’s new in FBCoPC</h2>
     <p>Prayer is still at the heart of this app. It’s now also how our church family
       stays in touch.</p>
     <ul class="wn-list">
@@ -392,7 +401,7 @@
     <div class="about-head">
       <img class="about-logo" src="./assets/logo-display.png" alt="" />
       <div class="about-heading">
-        <div class="about-title">Prayer Chain</div>
+        <div class="about-title">FBCoPC</div>
         <div class="about-ver" id="aboutVer"></div>
       </div>
       <button type="button" class="btn btn-ghost" id="aboutClose">Close</button>

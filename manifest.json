@@ -1,7 +1,7 @@
 {
-  "name": "FBC Prayer Chain",
-  "short_name": "FBC Prayer",
-  "description": "Faith Baptist Church of Plymouth County — invite-only prayer requests and prayer chain.",
+  "name": "FBCoPC — Faith Baptist Church of Plymouth County",
+  "short_name": "FBCoPC",
+  "description": "Faith Baptist Church of Plymouth County — prayer requests & praise, church messages, and the church calendar. Invite-only.",
   "id": "./",
   "start_url": "./index.html",
   "scope": "./",
