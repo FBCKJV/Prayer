@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 33)';
+const APP_VERSION = '1.1 (build 34)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -1034,7 +1034,11 @@ function buildMessage(m) {
   card.appendChild(head);
 
   if (m.title) card.appendChild(el('h3', 'msg-title', m.title));
-  card.appendChild(el('p', 'card-body', m.body || ''));
+  // Birthday/anniversary greetings get a 🎉 to tap instead of 👍.
+  const celebrate = m.kind === 'celebration' || /^celebrate-/.test(m.id);
+  if (celebrate) card.classList.add('is-celebration');
+  const bodyText = celebrate ? (m.body || '').replace('Tap 👍', 'Tap 🎉') : (m.body || '');
+  card.appendChild(el('p', 'card-body', bodyText));
 
   // Linked calendar date: "📅 Sun, Nov 1 · 12:00 PM · Fellowship hall"
   if (m.eventDate) {
@@ -1055,7 +1059,10 @@ function buildMessage(m) {
   const tb = el('button', 'pray-btn thumbs-btn' + (on ? ' is-on' : ''));
   tb.type = 'button';
   tb.innerHTML = `<span aria-hidden="true">👍</span> <span class="pray-count">${thumbs.length || ''}</span>`;
-  tb.setAttribute('aria-label', on ? 'Remove your thumbs up' : 'Thumbs up');
+  if (celebrate) tb.querySelector('[aria-hidden]').textContent = '🎉';
+  tb.setAttribute('aria-label', celebrate
+    ? (on ? 'Take back your good wishes' : 'Send good wishes')
+    : (on ? 'Remove your thumbs up' : 'Thumbs up'));
   if (thumbs.length) tb.title = thumbs.map(nameOf).join(', ');
   tb.addEventListener('click', async () => {
     if (!uid) return;
