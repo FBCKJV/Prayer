@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 34)';
+const APP_VERSION = '1.1 (build 35)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -68,7 +68,11 @@ const els = {
   cCategory: $('#cCategory'),
   cUrgent: $('#cUrgent'),
   mainNav: $('.main-nav'),
-  msgDot: $('#msgDot'),
+  tabCount: {
+    prayer: $('#countPrayer'),
+    messages: $('#countMessages'),
+    calendar: $('#countCalendar'),
+  },
   messagesView: $('#messagesView'),
   newMsg: $('#newMsgBtn'),
   msgList: $('#msgList'),
@@ -366,6 +370,7 @@ function buildCard(p) {
   head.appendChild(el('span', 'tag cat', p.category || 'General'));
   if (p.urgent && !p.answered) head.appendChild(el('span', 'tag urgent', 'Urgent'));
   if (p.answered) head.appendChild(el('span', 'tag answered', '✓ Answered'));
+  if (isNewItem('prayer', p)) head.appendChild(el('span', 'tag new', 'New'));
   summary.appendChild(head);
 
   const line = el('div', 'card-line');
@@ -931,7 +936,11 @@ function showSection(name) {
   });
   const hash = name === 'prayer' ? '' : '#' + name;
   if (location.hash !== hash) history.replaceState(null, '', location.pathname + location.search + hash);
-  if (name === 'messages') { markMessagesSeen(); renderMessages(); }
+  const leaving = SECTIONS.filter((t) => t !== name);
+  for (const t of leaving) delete newSince[t]; // NEW tags last for one visit
+  markTabSeen(name, true);
+  if (name === 'prayer') renderFeed();
+  if (name === 'messages') renderMessages();
   if (name === 'calendar') { startEvents(); renderCalendar(); }
   window.scrollTo(0, 0);
 }
@@ -970,26 +979,76 @@ function showMessage(id) {
   setTimeout(() => card.classList.remove('flash'), 1600);
 }
 
-const MSG_SEEN = 'fbcprayer_msgs_seen';
-
 function tsMillis(ts) {
   return ts && ts.toMillis ? ts.toMillis() : 0;
 }
 
-// Show a dot on the Messages tab when there's a message newer than the last
-// time this device looked (and it isn't one you posted yourself).
-function updateMsgDot() {
-  const uid = currentUser && currentUser.uid;
-  const seen = Number(localStorage.getItem(MSG_SEEN) || 0);
-  const unread = announcements.some((m) => m.uid !== uid && tsMillis(m.createdAt) > seen);
-  els.msgDot.hidden = !unread || section === 'messages';
+/* "What's new since I last looked" — for people who check in now and then
+   instead of getting alerts. Each tab shows "(3)" for other people's posts
+   newer than the last time this device opened that tab. Opening the tab
+   clears the count; those posts then wear a small NEW tag for that visit. */
+const SEEN_KEY = {
+  prayer: 'fbcprayer_seen_prayer',
+  messages: 'fbcprayer_msgs_seen', // same key the old red dot used
+  calendar: 'fbcprayer_seen_calendar',
+};
+const newSince = {}; // per tab: the "last seen" time NEW tags compare against
+
+function readSeen(tab) {
+  try {
+    const v = localStorage.getItem(SEEN_KEY[tab]);
+    if (v != null) return Number(v) || 0;
+    // First time on this device: start counting from now, not from forever.
+    localStorage.setItem(SEEN_KEY[tab], String(Date.now()));
+  } catch (_) {}
+  return Date.now();
+}
+function writeSeen(tab, ms) {
+  try { localStorage.setItem(SEEN_KEY[tab], String(ms)); } catch (_) {}
 }
 
-function markMessagesSeen() {
-  const newest = announcements.reduce((n, m) => Math.max(n, tsMillis(m.createdAt)), 0);
-  const seen = Number(localStorage.getItem(MSG_SEEN) || 0);
-  if (newest > seen) localStorage.setItem(MSG_SEEN, String(newest));
-  updateMsgDot();
+// Other people's items on each tab, as { createdAt } records.
+function tabItems(tab) {
+  const uid = currentUser && currentUser.uid;
+  const mine = (x) => x.uid === uid;
+  if (tab === 'prayer') return prayers.filter((x) => !mine(x));
+  if (tab === 'messages') return announcements.filter((x) => !mine(x));
+  // Calendar: newly added events. Announced ones are already counted under
+  // Messages, and birthdays/anniversaries aren't "news".
+  return events.filter((x) => !mine(x) && !x.announcementId);
+}
+
+function isNewItem(tab, x) {
+  const uid = currentUser && currentUser.uid;
+  return x.uid !== uid && newSince[tab] != null && tsMillis(x.createdAt) > newSince[tab];
+}
+
+function updateTabCounts() {
+  for (const tab of SECTIONS) {
+    const node = els.tabCount[tab];
+    if (!node) continue;
+    const viewing = section === tab && els.listView.hidden && !els.topbar.hidden;
+    const seen = readSeen(tab);
+    const n = viewing ? 0 : tabItems(tab).filter((x) => tsMillis(x.createdAt) > seen).length;
+    node.textContent = n ? `(${n > 9 ? '9+' : n})` : '';
+    node.hidden = !n;
+  }
+}
+
+// Opening a tab (or new posts arriving while it's open): remember what's been
+// seen. The first time per visit, keep the old mark so NEW tags can show.
+function markTabSeen(tab, firstLook) {
+  const seen = readSeen(tab);
+  if (firstLook) newSince[tab] = seen;
+  const newest = tabItems(tab).reduce((n, x) => Math.max(n, tsMillis(x.createdAt)), 0);
+  if (newest > seen) writeSeen(tab, newest);
+  updateTabCounts();
+}
+
+// Called whenever a tab's data changes.
+function dataChanged(tab) {
+  if (section === tab && els.listView.hidden && !els.topbar.hidden) markTabSeen(tab, newSince[tab] == null);
+  else updateTabCounts();
 }
 
 function renderMessages() {
@@ -1026,6 +1085,7 @@ function buildMessage(m) {
   const author = el('span', 'msg-author', m.author || 'Church office');
   { const rb = roleBadge(m.uid); if (rb) author.appendChild(rb); }
   head.appendChild(author);
+  if (isNewItem('messages', m)) head.appendChild(el('span', 'tag new', 'New'));
   // Always show the posted date, so an old message never reads as new.
   const posted = m.createdAt && m.createdAt.toDate
     ? m.createdAt.toDate().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · '
@@ -1294,8 +1354,9 @@ function eventsOn(date) {
   return occurrences(date, date);
 }
 
-// Start watching the calendar the first time it's opened. Only events from
-// about a year back onward are loaded, which keeps reads small.
+// Start watching the calendar once membership is confirmed (it feeds the
+// Calendar tab's count too). Only events from about a year back onward are
+// loaded, which keeps reads small.
 function startEvents() {
   if (unsubEvents || !currentUser || !memberReady) return;
   const since = new Date(); since.setFullYear(since.getFullYear() - 1);
@@ -1307,6 +1368,7 @@ function startEvents() {
   store.watchEvents(ymd(since), (items) => {
     eventsLoaded = true;
     events = items;
+    dataChanged('calendar');
     renderCalendar();
   }, () => { eventsLoaded = true; renderCalendar(); })
     .then((u) => {
@@ -1415,6 +1477,9 @@ function buildEvent(ev, showDate) {
   }
   const info = el('div', 'event-info');
   info.appendChild(el('div', 'event-title', ev.title || 'Event'));
+  if (!ev.celebration && !ev.announcementId && isNewItem('calendar', ev)) {
+    info.querySelector('.event-title').appendChild(el('span', 'tag new', 'New'));
+  }
   if (ev.celebration) {
     row.classList.add('is-celebration');
     const c = ev.celebration;
@@ -1950,13 +2015,15 @@ async function showFeedView() {
   isEditor = !!(prof && LEADER_ROLES.includes(prof.role));
   setupNotifications(user.uid);
   showWhatsNew();
-  if (section === 'calendar') { startEvents(); renderCalendar(); }
+  startEvents(); // also feeds the Calendar tab's "(n)" count
+  if (section === 'calendar') renderCalendar();
   try {
     if (!unsubPrayers) {
       unsubPrayers = await store.watchPrayers(
         (items) => {
           feedLoaded = true;
           prayers = items;
+          dataChanged('prayer');
           // Auto-expand the newest request (once). If the reader collapses it,
           // it stays collapsed; a brand-new post becomes the newest and opens.
           if (items.length) {
@@ -1976,8 +2043,7 @@ async function showFeedView() {
         (items) => {
           msgsLoaded = true;
           announcements = items;
-          if (section === 'messages' && !els.messagesView.hidden) markMessagesSeen();
-          else updateMsgDot();
+          dataChanged('messages');
           renderMessages();
           renderCalendar();
         },
@@ -2032,7 +2098,7 @@ async function boot() {
         for (const d of [els.composer, els.msgComposer, els.eventComposer]) if (d.open) d.close();
         announcements = []; msgsLoaded = false;
         events = []; eventsLoaded = false; memberReady = false; celebrations = [];
-        els.msgDot.hidden = true;
+        for (const t of SECTIONS) { els.tabCount[t].hidden = true; delete newSince[t]; }
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();
         if (els.aboutDialog.open) els.aboutDialog.close();
