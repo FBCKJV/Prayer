@@ -142,7 +142,7 @@ function fmtDate(d, timeZone) {
 // Types only church leaders may send, and the roles that count as leaders
 // (must match isEditor() in firestore.rules).
 const LEADER_ONLY = ['announcement', 'new_event'];
-const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'secretary'];
+const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'clerk'];
 
 // Alerts go out only between QUIET_END and QUIET_START (church time).
 // Optional Worker variable CHURCH_TZ overrides the zone.

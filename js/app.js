@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 31)';
+const APP_VERSION = '1.1 (build 32)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -146,14 +146,14 @@ function roleBadge(uid) {
   if (r === 'admin') return el('span', 'mod-badge', 'Moderator');
   if (r === 'pastor') return el('span', 'mod-badge pastor', 'Pastor');
   if (r === 'deacon') return el('span', 'mod-badge leader', 'Deacon');
-  if (r === 'secretary') return el('span', 'mod-badge leader', 'Secretary');
+  if (r === 'clerk') return el('span', 'mod-badge leader', 'Clerk');
   return null;
 }
 
 // Church leaders: may edit the Weekly Prayer List, post messages and manage
 // the calendar (must match isEditor() in firestore.rules and the Worker).
 // Moderating (deleting others' posts, removing members) stays admin-only.
-const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'secretary'];
+const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'clerk'];
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 
