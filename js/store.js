@@ -76,6 +76,31 @@ export async function signUp({ name, email, password, inviteCode }) {
   }
 }
 
+// My profile: change my name and my optional special days ('MM-DD' or '').
+export async function updateMyProfile({ name, birthday, anniversary, anniversaryName }) {
+  const { fs, db, authInst } = await init();
+  await fs.updateDoc(fs.doc(db, 'users', authInst.currentUser.uid), {
+    name: name.trim(),
+    birthday: birthday || '',
+    anniversary: anniversary || '',
+    anniversaryName: (anniversaryName || '').trim(),
+  });
+}
+
+// Change my password. Firebase asks for the current one first (a safety check).
+export async function changeMyPassword(currentPassword, newPassword) {
+  const { auth, authInst } = await init();
+  const user = authInst.currentUser;
+  const cred = auth.EmailAuthProvider.credential(user.email, currentPassword);
+  await auth.reauthenticateWithCredential(user, cred);
+  await auth.updatePassword(user, newPassword);
+}
+
+export async function myEmail() {
+  const { authInst } = await init();
+  return (authInst.currentUser && authInst.currentUser.email) || '';
+}
+
 export async function getProfile(uid) {
   const { fs, db } = await init();
   const snap = await fs.getDoc(fs.doc(db, 'users', uid));

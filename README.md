@@ -39,6 +39,9 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
 - **🎂 Birthdays & anniversaries.** Add them one at a time (＋ Add event → Type)
   or import a spreadsheet (CSV: Name, Type, Date). Only month and day are kept.
   Each morning at 8 AM a "🎉 Celebrating today" message goes out for that day.
+- **👤 My profile.** ⋯ → My profile: change your name, change your password
+  (or email yourself a reset link), and optionally add your own birthday and
+  anniversary (month and day only) so the church can wish you well.
 - **Easy for everyone.** ⋯ → **Text size** (A / A+ / A++) makes all the words
   bigger and is remembered on that phone; ⋯ → **❓ How do I…?** answers the common
   questions in plain words; people without alerts get a friendly "Would you like

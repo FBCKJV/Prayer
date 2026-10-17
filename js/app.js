@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 37)';
+const APP_VERSION = '1.1 (build 38)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -713,6 +713,108 @@ els.membersBtn.addEventListener('click', () => {
 });
 els.membersClose.addEventListener('click', () => els.membersDialog.close());
 
+/* ── My profile ───────────────────────────────────────────────────────── */
+
+const pf = (id) => document.getElementById(id);
+function setMd(prefix, md) {
+  pf(prefix + 'M').value = md ? md.slice(0, 2) : '';
+  pf(prefix + 'D').value = md ? md.slice(3) : '';
+}
+// → 'MM-DD', '' (left blank), null (only half filled in), or 'bad' (no such date)
+function getMd(prefix) {
+  const m = pf(prefix + 'M').value, d = pf(prefix + 'D').value;
+  if (!m && !d) return '';
+  if (!m || !d) return null;
+  return +d <= new Date(2000, +m, 0).getDate() ? `${m}-${d}` : 'bad'; // 2000: Feb 29 allowed
+}
+function syncAnnName() {
+  pf('pfAnnNameRow').hidden = !pf('pfAnnM').value && !pf('pfAnnD').value;
+}
+pf('pfAnnM').addEventListener('change', syncAnnName);
+pf('pfAnnD').addEventListener('change', syncAnnName);
+document.querySelectorAll('.md-clear').forEach((b) => b.addEventListener('click', () => {
+  setMd('pf' + b.dataset.clear, '');
+  syncAnnName();
+}));
+
+function openProfile() {
+  closeMenu();
+  const me = members.find((m) => m.id === (currentUser && currentUser.uid)) || {};
+  pf('pfName').value = me.name || '';
+  setMd('pfBday', me.birthday || '');
+  setMd('pfAnn', me.anniversary || '');
+  pf('pfAnnName').value = me.anniversaryName || '';
+  pf('pfAnnName').placeholder = `e.g. ${me.name || 'John'} & …`;
+  syncAnnName();
+  for (const id of ['pfPwCur', 'pfPwNew', 'pfPwNew2']) pf(id).value = '';
+  showError(pf('pfError'), '');
+  showError(pf('pwError'), '');
+  const d = pf('profileDialog');
+  if (typeof d.showModal === 'function' && !d.open) d.showModal();
+}
+function showOk(node, msg) {
+  showError(node, '');
+  node.hidden = false;
+  node.classList.add('ok');
+  node.textContent = msg;
+}
+
+pf('profileBtn').addEventListener('click', openProfile);
+pf('profileClose').addEventListener('click', () => pf('profileDialog').close());
+
+pf('pfSave').addEventListener('click', async () => {
+  const name = pf('pfName').value.replace(/\s+/g, ' ').trim();
+  const birthday = getMd('pfBday');
+  const anniversary = getMd('pfAnn');
+  if (!name) { showError(pf('pfError'), 'Please type your name.'); return; }
+  if (birthday === null) { showError(pf('pfError'), 'Please pick both the month and the day of your birthday (or tap Remove).'); return; }
+  if (anniversary === null) { showError(pf('pfError'), 'Please pick both the month and the day of your anniversary (or tap Remove).'); return; }
+  if (birthday === 'bad' || anniversary === 'bad') { showError(pf('pfError'), 'That date doesn’t exist (like February 30). Please pick another day.'); return; }
+  pf('pfSave').disabled = true;
+  try {
+    await store.updateMyProfile({ name, birthday, anniversary, anniversaryName: anniversary ? pf('pfAnnName').value : '' });
+    showOk(pf('pfError'), '✅ Saved.');
+  } catch (err) {
+    showError(pf('pfError'), 'Could not save. ' + friendlyAuthError(err));
+  } finally {
+    pf('pfSave').disabled = false;
+  }
+});
+
+pf('pfPwSave').addEventListener('click', async () => {
+  const cur = pf('pfPwCur').value, nw = pf('pfPwNew').value, nw2 = pf('pfPwNew2').value;
+  if (!cur) { showError(pf('pwError'), 'Please type your current password.'); return; }
+  if (nw.length < 6) { showError(pf('pwError'), 'The new password needs at least 6 characters.'); return; }
+  if (nw !== nw2) { showError(pf('pwError'), 'The two new passwords don’t match. Please type them again.'); return; }
+  pf('pfPwSave').disabled = true;
+  try {
+    await store.changeMyPassword(cur, nw);
+    for (const id of ['pfPwCur', 'pfPwNew', 'pfPwNew2']) pf(id).value = '';
+    showOk(pf('pwError'), '✅ Your password is changed. Use the new one next time you sign in.');
+  } catch (err) {
+    const code = (err && err.code) || '';
+    showError(pf('pwError'), /wrong-password|invalid-credential|invalid-login/.test(code)
+      ? 'That current password isn’t right. Try again, or use the reset link below.'
+      : friendlyAuthError(err));
+  } finally {
+    pf('pfPwSave').disabled = false;
+  }
+});
+
+pf('pfPwReset').addEventListener('click', async () => {
+  const email = await store.myEmail();
+  if (!email) return;
+  pf('pfPwReset').disabled = true;
+  try {
+    await store.sendPasswordReset(email);
+    showOk(pf('pwError'), `📧 A reset link is on its way to ${email}. Check your inbox (and spam).`);
+  } catch (err) {
+    showError(pf('pwError'), friendlyAuthError(err));
+  } finally {
+    pf('pfPwReset').disabled = false;
+  }
+});
+
 /* ── "How do I…?" help ────────────────────────────────────────────────── */
 
 $('#howBtn').addEventListener('click', () => {
@@ -1352,7 +1454,7 @@ function occurrences(from, to) {
   for (const ev of events) {
     for (const date of datesOf(ev, from, to)) out.push({ ...ev, seriesDate: ev.date, date });
   }
-  for (const c of celebrations) {
+  for (const c of allCelebrations()) {
     for (const date of celebrationDates(c, from, to)) {
       out.push({ id: 'cel:' + c.id, celebration: c, title: celebrationLabel(c), date, time: '' });
     }
@@ -1369,6 +1471,26 @@ function celebrationDates(c, from, to) {
     const md = c.md === '02-29' && !isLeap(y) ? '02-28' : c.md;
     const key = `${y}-${md}`;
     if (key >= from && key <= to) out.push(key);
+  }
+  return out;
+}
+// The leaders' list plus the special days members added in My profile.
+// Someone on both is only shown (and greeted) once.
+function allCelebrations() {
+  const out = celebrations.slice();
+  const have = new Set(out.map((c) => `${c.kind}|${c.md}|${c.name.trim().toLowerCase()}`));
+  const add = (c) => {
+    const k = `${c.kind}|${c.md}|${c.name.trim().toLowerCase()}`;
+    if (!have.has(k)) { have.add(k); out.push(c); }
+  };
+  for (const m of members) {
+    if (m.removed) continue;
+    if (/^\d{2}-\d{2}$/.test(m.birthday || '')) {
+      add({ id: 'me-b-' + m.id, name: m.name || 'A member', kind: 'birthday', md: m.birthday, uid: m.id });
+    }
+    if (/^\d{2}-\d{2}$/.test(m.anniversary || '')) {
+      add({ id: 'me-a-' + m.id, name: (m.anniversaryName || '').trim() || m.name || 'A member', kind: 'anniversary', md: m.anniversary, uid: m.id });
+    }
   }
   return out;
 }
@@ -1477,7 +1599,7 @@ function renderCalendar() {
     els.calCelebrations.appendChild(row);
   }
   if (!soon.length) {
-    els.calCelebrations.appendChild(el('p', 'event-empty', celebrations.length
+    els.calCelebrations.appendChild(el('p', 'event-empty', allCelebrations().length
       ? 'None in the next 30 days.'
       : 'None added yet.' + (isEditor ? ' Add one with ＋ Add event → Type, or import a list below.' : '')));
   }
@@ -1515,7 +1637,17 @@ function buildEvent(ev, showDate) {
     row.classList.add('is-celebration');
     const c = ev.celebration;
     info.appendChild(el('div', 'event-repeat', '🔁 Every year on ' + MONTHS[+c.md.slice(0, 2) - 1] + ' ' + (+c.md.slice(3))));
-    if (isEditor) {
+    if (c.uid) {
+      // Added by the member in My profile — they manage it there.
+      if (c.uid === (currentUser && currentUser.uid)) {
+        const acts = el('div', 'event-actions');
+        const mine = el('button', 'link-btn', 'Change in My profile');
+        mine.type = 'button';
+        mine.addEventListener('click', openProfile);
+        acts.appendChild(mine);
+        info.appendChild(acts);
+      }
+    } else if (isEditor) {
       const acts = el('div', 'event-actions');
       const edit = el('button', 'link-btn', 'Edit');
       edit.type = 'button';
@@ -2139,6 +2271,7 @@ async function boot() {
         if (els.membersDialog.open) els.membersDialog.close();
         if (els.aboutDialog.open) els.aboutDialog.close();
         if ($('#howDialog').open) $('#howDialog').close();
+        if ($('#profileDialog').open) $('#profileDialog').close();
         if ($('#whatsNewDialog').open) $('#whatsNewDialog').close();
         els.listView.hidden = true;
         listData = null;

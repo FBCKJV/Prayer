@@ -36,6 +36,7 @@
           <button id="menuBtn" class="btn btn-ghost menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
           <div id="menu" class="menu" role="menu" hidden>
             <button id="notifyMenuBtn" class="menu-item" type="button" role="menuitem" hidden>🔔 Turn on alerts</button>
+            <button id="profileBtn" class="menu-item" type="button" role="menuitem">👤 My profile</button>
             <button id="howBtn" class="menu-item" type="button" role="menuitem">❓ How do I…?</button>
             <div class="menu-textsize" role="group" aria-label="Text size">
               <span class="menu-textsize-label">Text size</span>
@@ -411,6 +412,72 @@
   </div>
 </dialog>
 
+<!-- My profile: name, password, special days -->
+<dialog id="profileDialog" class="dialog">
+  <div class="dialog-form profile">
+    <div class="how-head">
+      <h2 class="dialog-title">👤 My profile</h2>
+      <button type="button" class="btn btn-ghost" id="profileClose">Close</button>
+    </div>
+
+    <section class="pf-section">
+      <h3>My name</h3>
+      <label class="field">
+        <span>How your name shows to everyone</span>
+        <input id="pfName" type="text" maxlength="80" autocomplete="name" />
+      </label>
+      <p class="hint">New posts use the new name. Earlier posts keep the name they were posted with.</p>
+    </section>
+
+    <section class="pf-section">
+      <h3>My special days <small>(optional)</small></h3>
+      <p class="hint">Add them and the church can wish you well — they appear on the calendar and in the “🎉 Celebrating today” message. Only the month and day are kept, never the year.</p>
+      <div class="field">
+        <span>🎂 My birthday</span>
+        <div class="md-row">
+          <select id="pfBdayM" aria-label="Birthday month"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+          <select id="pfBdayD" aria-label="Birthday day"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select>
+          <button type="button" class="link-btn danger md-clear" data-clear="Bday">Remove</button>
+        </div>
+      </div>
+      <div class="field">
+        <span>💍 Our anniversary</span>
+        <div class="md-row">
+          <select id="pfAnnM" aria-label="Anniversary month"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+          <select id="pfAnnD" aria-label="Anniversary day"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select>
+          <button type="button" class="link-btn danger md-clear" data-clear="Ann">Remove</button>
+        </div>
+      </div>
+      <label class="field" id="pfAnnNameRow">
+        <span>Show the anniversary as</span>
+        <input id="pfAnnName" type="text" maxlength="80" placeholder="e.g. John &amp; Mary Smith" />
+      </label>
+    </section>
+
+    <p id="pfError" class="form-error" role="alert" hidden></p>
+    <button type="button" class="btn btn-primary btn-block" id="pfSave">Save my profile</button>
+
+    <section class="pf-section">
+      <h3>Change my password</h3>
+      <label class="field">
+        <span>Current password</span>
+        <input id="pfPwCur" type="password" autocomplete="current-password" />
+      </label>
+      <label class="field">
+        <span>New password <small>(at least 6 characters)</small></span>
+        <input id="pfPwNew" type="password" autocomplete="new-password" minlength="6" />
+      </label>
+      <label class="field">
+        <span>New password again</span>
+        <input id="pfPwNew2" type="password" autocomplete="new-password" minlength="6" />
+      </label>
+      <p id="pwError" class="form-error" role="alert" hidden></p>
+      <button type="button" class="btn btn-primary btn-block" id="pfPwSave">Change my password</button>
+      <button type="button" class="link-inline pf-reset" id="pfPwReset">Don’t know your current password? Email me a reset link instead</button>
+    </section>
+  </div>
+</dialog>
+
 <!-- "How do I…?" — plain-words help -->
 <dialog id="howDialog" class="dialog">
   <div class="dialog-form how">
@@ -484,6 +551,15 @@
       <ol>
         <li>Tap the <b>⋯</b> button at the top right.</li>
         <li>Under <b>Text size</b>, tap <b>A+</b> or <b>A++</b>. Tap <b>A</b> to go back to normal.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>👤 Change my name, password, or add my birthday</summary>
+      <ol>
+        <li>Tap the <b>⋯</b> button at the top right.</li>
+        <li>Tap <b>👤 My profile</b>.</li>
+        <li>Make your change and tap the blue <b>Save</b> or <b>Change my password</b> button.</li>
       </ol>
     </details>
 
