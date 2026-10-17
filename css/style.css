@@ -49,8 +49,8 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; flex: 1 1 auto; }
 .brand-mark { width: 30px; height: 30px; flex: 0 0 auto; display: block; }
-.brand-lines { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-.brand-text { letter-spacing: 0.2px; white-space: nowrap; }
+.brand-lines { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; overflow: hidden; }
+.brand-text { letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-church { font-size: 0.66rem; font-weight: 600; color: var(--muted); letter-spacing: .2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
@@ -416,11 +416,14 @@ body {
 }
 .main-tab:hover { color: var(--text); }
 .main-tab.is-active { background: var(--surface); color: var(--gold-soft); box-shadow: var(--shadow); }
+.tab-count { color: var(--danger); font-weight: 800; }
+.tag.new { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.event-title .tag.new { margin-left: 6px; vertical-align: 2px; font-size: 0.62rem; }
 .nav-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   background: var(--danger); margin-left: 5px; vertical-align: 2px;
 }
-@media (max-width: 380px) { .main-tab { font-size: 0.82rem; padding: 8px 2px; } }
+@media (max-width: 400px) { .main-tab { font-size: 0.8rem; padding: 8px 2px; } }
 
 /* Church messages */
 .msg-card { padding: 14px 16px 12px; }
