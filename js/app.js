@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 35)';
+const APP_VERSION = '1.1 (build 36)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -653,7 +653,7 @@ function renderMembers() {
       rm.addEventListener('click', async () => {
         const warn = m.role === 'admin'
           ? `Remove moderator ${m.name}? They’ll lose all access. You can restore them here later.`
-          : `Remove ${m.name} from the prayer chain? They’ll lose access immediately. You can restore them here later.`;
+          : `Remove ${m.name} from FBCoPC? They’ll lose access immediately. You can restore them here later.`;
         if (!confirm(warn)) return;
         rm.disabled = true;
         try { await store.removeMember(m.id); }
@@ -842,12 +842,12 @@ function printPrayerList() {
   els.printArea.appendChild(buildSheet(PANEL_A_CATS, true, PANEL_B_CATS, false, sections));
   // "Save as PDF" names the file after the page title, so title it with the
   // six-digit date (MMDDYY) of the Wednesday it's for: today if it's
-  // Wednesday, otherwise the coming one. e.g. "FBC Prayer List 101426.pdf"
+  // Wednesday, otherwise the coming one. e.g. "FBCoPC Prayer List 101426.pdf"
   const wed = new Date();
   wed.setDate(wed.getDate() + ((3 - wed.getDay() + 7) % 7));
   const stamp = pad2(wed.getMonth() + 1) + pad2(wed.getDate()) + pad2(wed.getFullYear() % 100);
   const prevTitle = document.title;
-  document.title = `FBC Prayer List ${stamp}`;
+  document.title = `FBCoPC Prayer List ${stamp}`;
   const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   window.print();
@@ -1968,7 +1968,7 @@ function feedProblem(err, headline) {
   els.feedEmpty.hidden = false;
   els.feedEmpty.innerHTML = '';
   els.feedEmpty.appendChild(el('div', 'big', '⚠️'));
-  els.feedEmpty.appendChild(el('p', null, headline || 'Couldn’t load the prayer chain.'));
+  els.feedEmpty.appendChild(el('p', null, headline || 'Couldn’t load prayers & praise.'));
   let hint = 'Check your internet connection and try again.';
   if (/resource-exhausted/.test(code)) hint = 'The daily free Firebase usage limit was reached. It resets after midnight (Pacific). Try again later.';
   else if (/permission-denied/.test(code)) hint = 'Your account may have lost access. Ask a leader, or sign out and back in.';
@@ -1986,7 +1986,7 @@ async function showFeedView() {
   els.topbar.hidden = false;
   showSection(sectionFromHash());
   els.feedEmpty.hidden = false;
-  els.feedEmpty.innerHTML = '<span class="big">🕊️</span>Loading the prayer chain…';
+  els.feedEmpty.innerHTML = '<span class="big">🕊️</span>Loading prayers &amp; praise…';
   feedLoaded = false;
 
   // Safety net: if nothing loads within 15s (hung SDK import, dropped
@@ -2035,7 +2035,7 @@ async function showFeedView() {
           }
           renderFeed();
         },
-        (err) => feedProblem(err, 'Couldn’t load the prayer chain.')
+        (err) => feedProblem(err, 'Couldn’t load prayers & praise.')
       );
     }
     if (!unsubMsgs) {
