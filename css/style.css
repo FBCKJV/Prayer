@@ -309,6 +309,7 @@ body {
 .import-preview td, .import-preview th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .import-preview .skipped { color: var(--danger); }
 .event.is-celebration { background: #fffaf0; }
+.msg-card.is-celebration { background: #fffaf0; border-color: #f3c969; }
 .quiet-note { display: block; color: var(--muted); font-size: 0.78rem; }
 .mod-badge.pastor {
   background: color-mix(in srgb, #7a5cd0 20%, transparent); color: #5a3fb0;

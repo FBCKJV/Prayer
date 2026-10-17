@@ -283,7 +283,7 @@ async function postCelebrations(env, bearer, { uid, author, manual }) {
     ...birthdays.map((n) => `🎂 Happy birthday, ${n}!`),
     ...anniversaries.map((n) => `💍 Happy anniversary, ${n}!`),
     '',
-    'Tap 👍 to send your good wishes.',
+    'Tap 🎉 to send your good wishes.',
   ];
   const now = new Date().toISOString();
   const str = (v) => ({ stringValue: v });
