@@ -91,6 +91,22 @@ body {
 .ts-btn[data-size="larger"] { font-size: 1.2rem; }
 .ts-btn.is-on { background: var(--gold); border-color: var(--gold); color: #fff; }
 
+/* My profile */
+.profile { max-height: 86vh; overflow-y: auto; gap: 14px; }
+.pf-section { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.pf-section h3 { margin: 0; font-size: 1rem; color: var(--gold-soft); }
+.pf-section h3 small { color: var(--muted); font-weight: 600; }
+.pf-section .hint { margin: 0; font-size: 0.85rem; }
+.md-row { display: flex; gap: 8px; align-items: center; }
+.md-row select {
+  font: inherit; color: var(--text); background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 10px 8px; min-width: 0;
+}
+.md-row select:first-child { flex: 1.4; }
+.md-row select:nth-child(2) { flex: 0.8; }
+.md-clear { flex: 0 0 auto; font-size: 0.85rem; }
+.pf-reset { text-align: center; margin-top: 2px; }
+
 /* "How do I…?" help */
 .how { max-height: 84vh; overflow-y: auto; gap: 10px; }
 .how-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

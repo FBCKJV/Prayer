@@ -118,6 +118,16 @@ Weekly Prayer List, **post church messages** (📣 Messages tab), and **add/edit
 calendar dates** (📅 Calendar tab). They can't remove members or delete other
 people's prayers — that stays with moderators (`admin`).
 
+### What members can change themselves
+
+Under **⋯ → 👤 My profile** each member can change their **name**, change their
+**password** (they type the current one first, or tap "Email me a reset link"),
+and add or remove their own **birthday** and **anniversary** (month and day
+only). Those dates are saved on their own `users/{uid}` doc as `birthday`,
+`anniversary` and `anniversaryName`, appear on the calendar, and are included
+in the 8 AM "🎉 Celebrating today" greeting. The rules let a member change only
+those fields on their own doc — never their role or email.
+
 ### Rotating / removing members
 
 - **Change the invite code:** edit `config/invite → code` in Firestore. People

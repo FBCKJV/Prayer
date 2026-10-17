@@ -45,6 +45,10 @@ service cloud.firestore {
       return isMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor', 'deacon', 'clerk'];
     }
+    // '' (not set) or a month-day like '12-02'.
+    function isMonthDay(v) {
+      return v is string && (v == '' || v.matches('^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'));
+    }
     function validInvite(code) {
       return code == get(/databases/$(database)/documents/config/invite).data.code;
     }
@@ -64,11 +68,21 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.keys().hasOnly(['name', 'email', 'inviteCode', 'createdAt']);
-      // Members may rename themselves; nothing else (including role) is editable.
-      // A moderator may also flip the `removed` flag (revoke / restore access),
-      // touching only the removal bookkeeping fields — never name, email, or role.
+      // Members may change their own name and their optional special days
+      // (birthday / anniversary as 'MM-DD', never a year) — nothing else, so
+      // role stays console-only. A moderator may also flip the `removed` flag
+      // (revoke / restore access), touching only the removal bookkeeping
+      // fields — never name, email, or role.
       allow update: if (request.auth.uid == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'birthday', 'anniversary', 'anniversaryName'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 80
+          && isMonthDay(request.resource.data.get('birthday', ''))
+          && isMonthDay(request.resource.data.get('anniversary', ''))
+          && request.resource.data.get('anniversaryName', '') is string
+          && request.resource.data.get('anniversaryName', '').size() <= 80)
         || (isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['removed', 'removedAt', 'removedBy', 'restoredAt', 'restoredBy']));

@@ -255,7 +255,8 @@ async function morningGreeting(env) {
   console.log(`[celebrate] cron result ${JSON.stringify(r)}`);
 }
 
-// Find today's birthdays/anniversaries in lists/celebrations and, if any,
+// Find today's birthdays/anniversaries (lists/celebrations plus the special
+// days members added to their own profile) and, if any,
 // create announcements/celebrate-YYYY-MM-DD (one per day — a second attempt
 // finds it already there) and alert everyone.
 async function postCelebrations(env, bearer, { uid, author, manual }) {
@@ -265,16 +266,39 @@ async function postCelebrations(env, bearer, { uid, author, manual }) {
   const y = +ymd.slice(0, 4);
   const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 
+  const sv = (f, k) => (f && f[k] && f[k].stringValue) || '';
+  const all = [];
+  // 1) The leaders' list (Calendar → Add event / Import).
   const listRes = await fetch(`${FS_BASE(env)}/lists/celebrations`, { headers: auth });
-  if (listRes.status === 404) return { posted: false, reason: 'none' };
-  if (!listRes.ok) return { posted: false, error: `read-${listRes.status}` };
-  const doc = await listRes.json().catch(() => ({}));
-  const values = (((doc.fields || {}).entries || {}).arrayValue || {}).values || [];
-  const today = values.map((v) => (v.mapValue && v.mapValue.fields) || {}).map((f) => ({
-    name: ((f.name && f.name.stringValue) || '').trim(),
-    kind: (f.kind && f.kind.stringValue) || 'birthday',
-    md: (f.md && f.md.stringValue) || '',
-  })).filter((c) => c.name && (c.md === md || (md === '02-28' && !leap && c.md === '02-29')));
+  if (!listRes.ok && listRes.status !== 404) return { posted: false, error: `read-${listRes.status}` };
+  if (listRes.ok) {
+    const doc = await listRes.json().catch(() => ({}));
+    const values = (((doc.fields || {}).entries || {}).arrayValue || {}).values || [];
+    for (const v of values) {
+      const f = (v.mapValue && v.mapValue.fields) || {};
+      all.push({ name: sv(f, 'name').trim(), kind: sv(f, 'kind') || 'birthday', md: sv(f, 'md') });
+    }
+  }
+  // 2) Special days members added in My profile (users/{uid}.birthday etc.).
+  let pageToken = '';
+  for (let page = 0; page < 20; page++) {
+    const res = await fetch(`${FS_BASE(env)}/users?pageSize=300${pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''}`, { headers: auth });
+    if (!res.ok) { console.log(`[celebrate] reading members failed ${res.status}`); break; }
+    const data = await res.json().catch(() => ({}));
+    for (const d of data.documents || []) {
+      const f = d.fields || {};
+      if (f.removed && f.removed.booleanValue) continue;
+      const name = sv(f, 'name').trim();
+      if (sv(f, 'birthday')) all.push({ name, kind: 'birthday', md: sv(f, 'birthday') });
+      if (sv(f, 'anniversary')) all.push({ name: sv(f, 'anniversaryName').trim() || name, kind: 'anniversary', md: sv(f, 'anniversary') });
+    }
+    pageToken = data.nextPageToken || '';
+    if (!pageToken) break;
+  }
+  // Today's, once each (someone on the list who also added themselves).
+  const seen = new Set();
+  const today = all.filter((c) => c.name && (c.md === md || (md === '02-28' && !leap && c.md === '02-29')))
+    .filter((c) => { const k = `${c.kind}|${c.name.toLowerCase()}`; if (seen.has(k)) return false; seen.add(k); return true; });
   if (!today.length) return { posted: false, reason: 'none' };
 
   const birthdays = today.filter((c) => c.kind !== 'anniversary').map((c) => c.name);
