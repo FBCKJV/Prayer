@@ -1,7 +1,7 @@
 # Setup guide — Push notifications
 
 This turns on alerts for **new prayer requests**, **answered prayers**, and
-**church messages** (only church leaders — admin, pastor, deacon, secretary —
+**church messages** (only church leaders — admin, pastor, deacon, clerk —
 can send those; a message alert shows the message's title). Calendar-only dates
 never alert. **Quiet hours:** anything posted between 8 PM and 8 AM (Eastern,
 or the Worker's `CHURCH_TZ` variable) is delivered at 8 AM.
