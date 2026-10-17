@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 38)';
+const APP_VERSION = '1.1 (build 39)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -775,7 +775,10 @@ pf('pfSave').addEventListener('click', async () => {
     await store.updateMyProfile({ name, birthday, anniversary, anniversaryName: anniversary ? pf('pfAnnName').value : '' });
     showOk(pf('pfError'), '✅ Saved.');
   } catch (err) {
-    showError(pf('pfError'), 'Could not save. ' + friendlyAuthError(err));
+    const denied = /permission/.test((err && (err.code || err.message)) || '');
+    showError(pf('pfError'), denied
+      ? 'The app isn’t allowed to save this yet. Please let a church leader know — the app’s security settings need a quick update. (Nothing is wrong with your account.)'
+      : 'Could not save. ' + friendlyAuthError(err));
   } finally {
     pf('pfSave').disabled = false;
   }
