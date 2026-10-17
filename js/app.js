@@ -6,7 +6,7 @@ import { LIST_SECTIONS, LIST_SEED } from './prayer-list-seed.js';
 const $ = (sel) => document.querySelector(sel);
 
 // Bump this when you deploy a notable change (shown in the About dialog).
-const APP_VERSION = '1.1 (build 32)';
+const APP_VERSION = '1.1 (build 33)';
 const BASE_TITLE = document.title;
 
 const els = {
@@ -98,6 +98,20 @@ const els = {
   calDayList: $('#calDayList'),
   calUpcoming: $('#calUpcoming'),
   newEvent: $('#newEventBtn'),
+  eKind: $('#eKind'),
+  eTitleLabel: $('#eTitleLabel'),
+  eDateLabel: $('#eDateLabel'),
+  greetBar: $('#greetBar'),
+  greetBtn: $('#greetBtn'),
+  calCelebrations: $('#calCelebrations'),
+  importBtn: $('#importBtn'),
+  importDialog: $('#importDialog'),
+  importFile: $('#importFile'),
+  importPreview: $('#importPreview'),
+  importError: $('#importError'),
+  importCancel: $('#importCancel'),
+  importGo: $('#importGo'),
+  importSample: $('#importSample'),
   eventComposer: $('#eventComposer'),
   eventForm: $('#eventForm'),
   eventFormTitle: $('#eventFormTitle'),
@@ -135,6 +149,7 @@ let unsubMsgs = null;
 let events = [];              // latest calendar snapshot
 let eventsLoaded = false;
 let unsubEvents = null;
+let celebrations = [];        // birthdays & anniversaries (lists/celebrations)
 let memberReady = false;      // membership confirmed; safe to attach listeners
 const openComments = new Map(); // prayerId -> { unsub, listEl }
 const expandedCards = new Set(); // prayerIds currently expanded
@@ -1239,8 +1254,31 @@ function occurrences(from, to) {
   for (const ev of events) {
     for (const date of datesOf(ev, from, to)) out.push({ ...ev, seriesDate: ev.date, date });
   }
+  for (const c of celebrations) {
+    for (const date of celebrationDates(c, from, to)) {
+      out.push({ id: 'cel:' + c.id, celebration: c, title: celebrationLabel(c), date, time: '' });
+    }
+  }
   return out.sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
 }
+
+/* Birthdays & anniversaries: one yearly date each (month + day only). A Feb 29
+   birthday is shown on Feb 28 in non-leap years. */
+const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+function celebrationDates(c, from, to) {
+  const out = [];
+  for (let y = +from.slice(0, 4); y <= +to.slice(0, 4); y++) {
+    const md = c.md === '02-29' && !isLeap(y) ? '02-28' : c.md;
+    const key = `${y}-${md}`;
+    if (key >= from && key <= to) out.push(key);
+  }
+  return out;
+}
+function celebrationLabel(c) {
+  return c.kind === 'anniversary' ? `💍 ${c.name}’s anniversary` : `🎂 ${c.name}’s birthday`;
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MON3 = MONTHS.map((m) => m.slice(0, 3).toLowerCase());
 
 let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
 let calSelected = ymd(new Date());
@@ -1256,6 +1294,9 @@ function startEvents() {
   const since = new Date(); since.setFullYear(since.getFullYear() - 1);
   const user = currentUser;
   unsubEvents = () => {}; // placeholder so we don't double-subscribe
+  let unsubCel = null;
+  store.watchCelebrations((list) => { celebrations = list; renderCalendar(); }, () => {})
+    .then((u) => { if (currentUser !== user) u(); else unsubCel = u; });
   store.watchEvents(ymd(since), (items) => {
     eventsLoaded = true;
     events = items;
@@ -1263,7 +1304,7 @@ function startEvents() {
   }, () => { eventsLoaded = true; renderCalendar(); })
     .then((u) => {
       if (currentUser !== user) u(); // signed out before it resolved
-      else unsubEvents = u;
+      else unsubEvents = () => { u(); if (unsubCel) unsubCel(); };
     });
 }
 
@@ -1317,10 +1358,35 @@ function renderCalendar() {
   // everything else; the calendar grid above still shows every date.
   const seen = new Set();
   const upcoming = occurrences(ymd(tomorrow), ymd(horizon))
-    .filter((ev) => !seen.has(ev.id) && seen.add(ev.id))
+    .filter((ev) => !ev.celebration && !seen.has(ev.id) && seen.add(ev.id))
     .slice(0, 10);
   if (upcoming.length) for (const ev of upcoming) els.calUpcoming.appendChild(buildEvent(ev, true));
   else els.calUpcoming.appendChild(el('p', 'event-empty', eventsLoaded ? 'No upcoming events yet.' : 'Loading…'));
+
+  // Birthdays & anniversaries in the next 30 days (today included).
+  els.calCelebrations.innerHTML = '';
+  const month = new Date(); month.setDate(month.getDate() + 30);
+  const soon = occurrences(today, ymd(month)).filter((ev) => ev.celebration);
+  for (const ev of soon) {
+    const row = el('div', 'cel-row');
+    const when = ev.date === today ? 'Today'
+      : parseYmd(ev.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    row.appendChild(el('span', 'cel-when', when));
+    row.appendChild(el('span', 'cel-name', ev.title));
+    row.addEventListener('click', () => { showOnCalendar(ev.date); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    els.calCelebrations.appendChild(row);
+  }
+  if (!soon.length) {
+    els.calCelebrations.appendChild(el('p', 'event-empty', celebrations.length
+      ? 'None in the next 30 days.'
+      : 'None added yet.' + (isEditor ? ' Add one with ＋ Add event → Type, or import a list below.' : '')));
+  }
+  els.importBtn.hidden = !isEditor;
+
+  // Leaders: offer to post today's greeting if it hasn't gone out yet.
+  const celebratingToday = eventsOn(today).some((ev) => ev.celebration);
+  els.greetBar.hidden = !(isEditor && notify.pushConfigured && calSelected === today && celebratingToday
+    && !announcements.some((a) => a.id === 'celebrate-' + today));
 }
 
 function buildEvent(ev, showDate) {
@@ -1342,6 +1408,29 @@ function buildEvent(ev, showDate) {
   }
   const info = el('div', 'event-info');
   info.appendChild(el('div', 'event-title', ev.title || 'Event'));
+  if (ev.celebration) {
+    row.classList.add('is-celebration');
+    const c = ev.celebration;
+    info.appendChild(el('div', 'event-repeat', '🔁 Every year on ' + MONTHS[+c.md.slice(0, 2) - 1] + ' ' + (+c.md.slice(3))));
+    if (isEditor) {
+      const acts = el('div', 'event-actions');
+      const edit = el('button', 'link-btn', 'Edit');
+      edit.type = 'button';
+      edit.addEventListener('click', () => openEventComposer(null, ev.date, c));
+      acts.appendChild(edit);
+      const del = el('button', 'link-btn danger', 'Remove');
+      del.type = 'button';
+      del.addEventListener('click', async () => {
+        if (!confirm(`Remove ${ev.title} from the calendar? (Every year.)`)) return;
+        try { await store.updateCelebrations((list) => list.filter((x) => x.id !== c.id)); }
+        catch (_) { alert('Could not remove this.'); }
+      });
+      acts.appendChild(del);
+      info.appendChild(acts);
+    }
+    row.appendChild(info);
+    return row;
+  }
   const sub = [];
   if (showDate) sub.push(parseYmd(ev.date).toLocaleDateString(undefined, { weekday: 'short' }));
   if (ev.time) sub.push(fmtTime(ev.time));
@@ -1402,11 +1491,35 @@ function buildEvent(ev, showDate) {
 }
 
 let editingEventId = null;
+let editingCelebration = null; // the birthday/anniversary entry being edited
 
-function openEventComposer(ev, date) {
+// The Type picker switches the form between a normal event and a yearly
+// birthday/anniversary (which only needs a name and a month/day).
+function syncKind() {
+  const k = els.eKind.value;
+  els.eventForm.querySelectorAll('.event-only').forEach((n) => (n.hidden = !!k));
+  els.eventForm.querySelectorAll('.celebration-only').forEach((n) => (n.hidden = !k));
+  els.eTitleLabel.textContent = k === 'birthday' ? 'Whose birthday?' : k === 'anniversary' ? 'Whose anniversary?' : 'What';
+  els.eTitle.placeholder = k === 'birthday' ? 'e.g. Chris Coon' : k === 'anniversary' ? 'e.g. John & Mary Smith' : 'e.g. Men’s breakfast';
+  els.eDateLabel.textContent = k ? 'Date (any year)' : 'Date';
+}
+els.eKind.addEventListener('change', syncKind);
+
+function openEventComposer(ev, date, celebration) {
   showError(els.eventError, '');
   els.eventForm.reset();
   editingEventId = ev ? ev.id : null;
+  editingCelebration = celebration || null;
+  els.eKind.disabled = !!(ev || celebration); // an event can't turn into a birthday, or back
+  if (celebration) {
+    els.eventFormTitle.textContent = celebration.kind === 'anniversary' ? 'Edit anniversary' : 'Edit birthday';
+    els.eKind.value = celebration.kind;
+    els.eTitle.value = celebration.name;
+    els.eDate.value = date || `${new Date().getFullYear()}-${celebration.md}`;
+    syncKind();
+    if (typeof els.eventComposer.showModal === 'function') els.eventComposer.showModal();
+    return;
+  }
   if (ev) {
     els.eventFormTitle.textContent = 'Edit event';
     els.eTitle.value = ev.title || '';
@@ -1423,6 +1536,7 @@ function openEventComposer(ev, date) {
     els.eDate.value = date && date > ymd(new Date()) ? date : '';
   }
   syncRepeatOptions();
+  syncKind();
   if (typeof els.eventComposer.showModal === 'function') els.eventComposer.showModal();
 }
 
@@ -1460,8 +1574,31 @@ els.eventForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = els.eTitle.value.trim();
   const date = els.eDate.value;
-  if (!title) { showError(els.eventError, 'Please name the event.'); return; }
+  const kind = els.eKind.value;
+  if (!title) { showError(els.eventError, kind ? 'Please type the name.' : 'Please name the event.'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showError(els.eventError, 'Please pick a date.'); return; }
+  if (kind) {
+    const md = date.slice(5);
+    const editing = editingCelebration;
+    els.eventSubmit.disabled = true;
+    try {
+      await store.updateCelebrations((list) => {
+        if (editing) return list.map((x) => (x.id === editing.id ? { ...x, name: title, md } : x));
+        const dup = list.some((x) => x.kind === kind && x.md === md && x.name.toLowerCase() === title.toLowerCase());
+        return dup ? list : [...list, { id: newCelebrationId(), name: title, kind, md }];
+      });
+      const y = new Date().getFullYear();
+      calSelected = `${y}-${md}`;
+      calMonth = new Date(y, +md.slice(0, 2) - 1, 1);
+      renderCalendar();
+      els.eventComposer.close();
+    } catch (err) {
+      showError(els.eventError, 'Could not save. ' + friendlyAuthError(err));
+    } finally {
+      els.eventSubmit.disabled = false;
+    }
+    return;
+  }
   const repeat = els.eRepeat.value;
   const until = repeat ? els.eUntil.value : '';
   if (until && until < date) { showError(els.eventError, 'The end date is before the first date.'); return; }
@@ -1480,6 +1617,174 @@ els.eventForm.addEventListener('submit', async (e) => {
   } finally {
     els.eventSubmit.disabled = false;
   }
+});
+
+function newCelebrationId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// Post today's "🎉 Celebrating today" message now (the Worker also does this
+// on its own at 8 AM once it has its Firebase key). Safe to tap twice — the
+// Worker only ever posts one per day.
+els.greetBtn.addEventListener('click', async () => {
+  els.greetBtn.disabled = true;
+  try {
+    const r = await notify.sendPush('celebrate', sectionUrl('messages'));
+    if (r && r.posted) {
+      alert(r.pushed ? '🎉 Posted in Messages and everyone was notified.'
+        : '🎉 Posted in Messages. (It’s quiet hours, so no alert was sent.)');
+    } else if (r && r.reason === 'already') {
+      alert('Today’s greeting was already posted.');
+    } else if (r && r.reason === 'none') {
+      alert('The notification service didn’t find any birthdays or anniversaries for today.');
+    } else {
+      alert('Could not post the greeting. If you just updated the notification Worker, make sure it was deployed.');
+    }
+  } finally {
+    els.greetBtn.disabled = false;
+  }
+});
+
+/* CSV import. Accepts Name, Type, Date in any column order (a header row is
+   optional), commas or tabs, quoted fields, and most common date styles. */
+function parseCsv(text) {
+  const first = text.split('\n')[0];
+  const delim = (first.match(/\t/g) || []).length > (first.match(/,/g) || []).length ? '\t' : ',';
+  const rows = [];
+  let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') q = false;
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === delim) { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.map((r) => r.map((c) => c.replace(/^﻿/, '').trim())).filter((r) => r.some(Boolean));
+}
+
+// → 'MM-DD' or null. Years are ignored on purpose.
+function parseMonthDay(v) {
+  const t = String(v || '').trim().toLowerCase().replace(/(\d)(st|nd|rd|th)\b/g, '$1').replace(/,/g, ' ').replace(/\s+/g, ' ');
+  let m, d, mt;
+  if ((mt = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) { m = +mt[2]; d = +mt[3]; }
+  else if ((mt = t.match(/^(\d{1,2})[/.-](\d{1,2})(?:[/.-]\d{2,4})?$/))) { m = +mt[1]; d = +mt[2]; }
+  else if ((mt = t.match(/^([a-z]{3,})\.? (\d{1,2})(?: \d{4})?$/))) { m = MON3.indexOf(mt[1].slice(0, 3)) + 1; d = +mt[2]; }
+  else if ((mt = t.match(/^(\d{1,2}) ([a-z]{3,})\.?(?: \d{4})?$/))) { d = +mt[1]; m = MON3.indexOf(mt[2].slice(0, 3)) + 1; }
+  if (!m || m < 1 || m > 12 || !d) return null;
+  if (d > new Date(2000, m, 0).getDate()) return null; // 2000 is a leap year, so Feb 29 is allowed
+  return `${pad2(m)}-${pad2(d)}`;
+}
+
+function parseKind(v) {
+  const t = String(v || '').toLowerCase();
+  if (/anniv|wedding|married|💍/.test(t)) return 'anniversary';
+  if (!t || /birth|bday|b-day|🎂/.test(t)) return 'birthday';
+  return null;
+}
+
+let importRows = [];
+
+function readCelebrationCsv(text) {
+  const rows = parseCsv(text);
+  let iName = 0, iKind = 1, iDate = 2, start = 0;
+  const head = (rows[0] || []).map((h) => h.toLowerCase());
+  if (head.some((h) => /name|who/.test(h))) {
+    start = 1;
+    iName = head.findIndex((h) => /name|who/.test(h));
+    iKind = head.findIndex((h) => /type|kind|occasion/.test(h));
+    iDate = head.findIndex((h) => /date|day|when/.test(h));
+  } else if ((rows[0] || []).length === 2) { iKind = -1; iDate = 1; }
+  const good = [], bad = [];
+  rows.slice(start).forEach((r, n) => {
+    const name = (r[iName] || '').replace(/\s+/g, ' ').trim();
+    const kind = iKind >= 0 ? parseKind(r[iKind]) : 'birthday';
+    const md = iDate >= 0 ? parseMonthDay(r[iDate]) : null;
+    const line = n + start + 1;
+    if (!name) bad.push({ line, why: 'no name' });
+    else if (!kind) bad.push({ line, name, why: `type “${r[iKind]}” isn’t Birthday or Anniversary` });
+    else if (!md) bad.push({ line, name, why: `couldn’t read the date “${(iDate >= 0 && r[iDate]) || ''}”` });
+    else good.push({ name, kind, md });
+  });
+  return { good, bad };
+}
+
+const celKey = (c) => `${c.kind}|${c.md}|${c.name.toLowerCase()}`;
+
+function renderImportPreview(good, bad) {
+  els.importPreview.innerHTML = '';
+  const have = new Set(celebrations.map(celKey));
+  const seen = new Set();
+  importRows = good.filter((g) => !have.has(celKey(g)) && !seen.has(celKey(g)) && seen.add(celKey(g)));
+  const dupes = good.length - importRows.length;
+  els.importPreview.appendChild(el('p', null,
+    `${importRows.length} to add` + (dupes ? ` · ${dupes} duplicate${dupes === 1 ? '' : 's'} or already added` : '') + (bad.length ? ` · ${bad.length} skipped` : '')));
+  if (importRows.length) {
+    const table = document.createElement('table');
+    for (const g of importRows) {
+      const tr = document.createElement('tr');
+      tr.appendChild(el('td', null, g.kind === 'anniversary' ? '💍' : '🎂'));
+      tr.appendChild(el('td', null, g.name));
+      tr.appendChild(el('td', null, MONTHS[+g.md.slice(0, 2) - 1].slice(0, 3) + ' ' + (+g.md.slice(3))));
+      table.appendChild(tr);
+    }
+    els.importPreview.appendChild(table);
+  }
+  for (const b of bad) els.importPreview.appendChild(el('p', 'skipped', `Row ${b.line}${b.name ? ' (' + b.name + ')' : ''}: ${b.why}`));
+  els.importGo.disabled = !importRows.length;
+  els.importGo.textContent = importRows.length ? `Import ${importRows.length}` : 'Import';
+}
+
+els.importBtn.addEventListener('click', () => {
+  importRows = [];
+  els.importFile.value = '';
+  els.importPreview.innerHTML = '';
+  els.importGo.disabled = true;
+  els.importGo.textContent = 'Import';
+  showError(els.importError, '');
+  if (typeof els.importDialog.showModal === 'function') els.importDialog.showModal();
+});
+els.importCancel.addEventListener('click', () => els.importDialog.close());
+els.importFile.addEventListener('change', async () => {
+  showError(els.importError, '');
+  const f = els.importFile.files && els.importFile.files[0];
+  if (!f) return;
+  try {
+    const { good, bad } = readCelebrationCsv(await f.text());
+    renderImportPreview(good, bad);
+  } catch (_) {
+    showError(els.importError, 'Couldn’t read that file. Save it from your spreadsheet as CSV and try again.');
+  }
+});
+els.importGo.addEventListener('click', async () => {
+  const rows = importRows.slice();
+  els.importGo.disabled = true;
+  try {
+    await store.updateCelebrations((list) => {
+      const have = new Set(list.map(celKey));
+      const add = rows.filter((g) => !have.has(celKey(g))).map((g) => ({ id: newCelebrationId(), ...g }));
+      return [...list, ...add];
+    });
+    els.importDialog.close();
+    alert(`✅ Added ${rows.length} to the calendar.`);
+  } catch (err) {
+    showError(els.importError, 'Could not import. ' + friendlyAuthError(err));
+    els.importGo.disabled = false;
+  }
+});
+els.importSample.addEventListener('click', (e) => {
+  e.preventDefault();
+  const csv = 'Name,Type,Date\r\nChris Coon,Birthday,12/02\r\nJohn & Mary Smith,Anniversary,06/14\r\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'birthdays-and-anniversaries.csv';
+  document.body.appendChild(a); a.click(); a.remove();
 });
 
 /* ── notifications opt-in ─────────────────────────────────────────────── */
@@ -1667,6 +1972,7 @@ async function showFeedView() {
           if (section === 'messages' && !els.messagesView.hidden) markMessagesSeen();
           else updateMsgDot();
           renderMessages();
+          renderCalendar();
         },
         () => { msgsLoaded = true; renderMessages(); }
       );
@@ -1718,7 +2024,7 @@ async function boot() {
         if (unsubEvents) { unsubEvents(); unsubEvents = null; }
         for (const d of [els.composer, els.msgComposer, els.eventComposer]) if (d.open) d.close();
         announcements = []; msgsLoaded = false;
-        events = []; eventsLoaded = false; memberReady = false;
+        events = []; eventsLoaded = false; memberReady = false; celebrations = [];
         els.msgDot.hidden = true;
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();

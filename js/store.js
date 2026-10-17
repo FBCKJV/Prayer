@@ -382,7 +382,7 @@ export async function watchEvents(sinceDate, cb, onError) {
     fs.query(col, fs.where('date', '>=', sinceDate), fs.orderBy('date', 'asc'), fs.limit(500)),
     (snap) => { recent = toList(snap); emit(); }, onError);
   const u2 = fs.onSnapshot(
-    fs.query(col, fs.where('repeat', 'in', REPEATS), fs.limit(200)),
+    fs.query(col, fs.where('repeat', 'in', REPEATS), fs.limit(300)),
     (snap) => { series = toList(snap); emit(); }, onError);
   return () => { u1(); u2(); };
 }
@@ -412,6 +412,39 @@ export async function saveEvent(id, { title, date, time, location, notes, repeat
     uid: user.uid,
     author: (prof && prof.name) || 'Church office',
     createdAt: fs.serverTimestamp(),
+  });
+}
+
+/* ── Birthdays & anniversaries ────────────────────────────────────────── */
+
+// Every birthday and anniversary lives in ONE document, lists/celebrations
+// ({ entries: [{ id, name, kind: 'birthday'|'anniversary', md: 'MM-DD' }] }),
+// so the calendar costs a single read however many people are on it. Only the
+// month and day are kept — never a birth year. Leaders edit it (same rule as
+// the Weekly Prayer List); the notification Worker reads it each morning.
+export async function watchCelebrations(cb, onError) {
+  const { fs, db } = await init();
+  return fs.onSnapshot(fs.doc(db, 'lists', 'celebrations'), (snap) => {
+    cb(snap.exists() ? (snap.data().entries || []) : []);
+  }, onError);
+}
+
+// Change the list safely even if two leaders edit at once: mutate(entries)
+// receives the current list and returns the new one.
+export async function updateCelebrations(mutate) {
+  const { fs, db, authInst } = await init();
+  const prof = await getProfile(authInst.currentUser.uid);
+  const ref = fs.doc(db, 'lists', 'celebrations');
+  return fs.runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const before = snap.exists() ? (snap.data().entries || []) : [];
+    const entries = mutate(before.slice());
+    tx.set(ref, {
+      entries,
+      updatedAt: fs.serverTimestamp(),
+      updatedBy: (prof && prof.name) || 'A leader',
+    });
+    return { before: before.length, after: entries.length };
   });
 }
 
