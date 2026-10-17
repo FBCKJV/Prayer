@@ -162,8 +162,15 @@
       <button id="newEventBtn" class="btn btn-primary" type="button" hidden>＋ Add event</button>
     </div>
     <div id="calDayList" class="event-list"></div>
+    <div id="greetBar" class="greet-bar" hidden>
+      <span>🎉 Today’s birthday/anniversary greeting hasn’t been posted yet.</span>
+      <button id="greetBtn" class="btn btn-primary" type="button">Post today’s greetings</button>
+    </div>
     <h3 class="section-heading">Coming up</h3>
     <div id="calUpcoming" class="event-list"></div>
+    <h3 class="section-heading">🎂 Birthdays &amp; anniversaries <small class="muted-small">(next 30 days)</small></h3>
+    <div id="calCelebrations" class="celebration-list"></div>
+    <button id="importBtn" class="link-btn import-link" type="button" hidden>⬆ Import birthdays &amp; anniversaries from a spreadsheet (CSV)</button>
   </main>
 
   <!-- Weekly Prayer List view -->
@@ -272,20 +279,28 @@
   <form method="dialog" class="dialog-form" id="eventForm">
     <h2 class="dialog-title" id="eventFormTitle">Add an event</h2>
     <label class="field">
-      <span>What</span>
+      <span>Type</span>
+      <select id="eKind">
+        <option value="">📅 Event</option>
+        <option value="birthday">🎂 Birthday</option>
+        <option value="anniversary">💍 Anniversary</option>
+      </select>
+    </label>
+    <label class="field">
+      <span id="eTitleLabel">What</span>
       <input id="eTitle" type="text" maxlength="100" required placeholder="e.g. Men’s breakfast" />
     </label>
     <div class="field-row">
       <label class="field">
-        <span>Date</span>
+        <span id="eDateLabel">Date</span>
         <input id="eDate" type="date" required />
       </label>
-      <label class="field">
+      <label class="field event-only">
         <span>Time <small>(optional)</small></span>
         <input id="eTime" type="time" />
       </label>
     </div>
-    <div class="field-row">
+    <div class="field-row event-only">
       <label class="field">
         <span>Repeats</span>
         <select id="eRepeat">
@@ -301,21 +316,40 @@
         <input id="eUntil" type="date" />
       </label>
     </div>
-    <label class="field">
+    <label class="field event-only">
       <span>Where <small>(optional)</small></span>
       <input id="eLocation" type="text" maxlength="120" placeholder="Fellowship hall" />
     </label>
-    <label class="field">
+    <label class="field event-only">
       <span>Details <small>(optional)</small></span>
       <textarea id="eNotes" rows="3" maxlength="1000"></textarea>
     </label>
-    <p class="hint" id="eQuietNote">Calendar dates are added quietly — no notification. To announce an event, post it from 📣 Messages with “Add to calendar”.</p>
+    <p class="hint celebration-only" hidden>Comes back every year. Only the month and day are saved — the year you pick doesn’t matter. On the day, a “🎉 Celebrating today” message goes out at 8 AM.</p>
+    <p class="hint event-only" id="eQuietNote">Calendar dates are added quietly — no notification. To announce an event, post it from 📣 Messages with “Add to calendar”.</p>
     <p id="eventError" class="form-error" role="alert" hidden></p>
     <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" id="eventCancel">Cancel</button>
       <button type="submit" class="btn btn-primary" id="eventSubmit">Save</button>
     </div>
   </form>
+</dialog>
+
+<!-- Import birthdays & anniversaries (CSV) -->
+<dialog id="importDialog" class="dialog">
+  <div class="dialog-form">
+    <h2 class="dialog-title">Import birthdays &amp; anniversaries</h2>
+    <p class="hint">Save your spreadsheet as <b>CSV</b> with three columns:
+      <b>Name</b>, <b>Type</b> (Birthday or Anniversary), <b>Date</b>
+      (e.g. <code>12/02</code>, <code>Dec 2</code>, or <code>1975-12-02</code> — only the month
+      and day are kept). <a href="#" id="importSample">Download a sample file</a>.</p>
+    <input id="importFile" type="file" accept=".csv,text/csv,text/plain" />
+    <div id="importPreview" class="import-preview"></div>
+    <p id="importError" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="importCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="importGo" disabled>Import</button>
+    </div>
+  </div>
 </dialog>
 
 <!-- Members / moderation dialog -->

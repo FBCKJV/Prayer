@@ -36,6 +36,9 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
   an event by posting a message with **Add to calendar** (one entry, one alert,
   kept in sync; marked *Passed* afterwards), or add quiet dates such as
   birthdays straight on the calendar (no alert). Repeating dates supported.
+- **🎂 Birthdays & anniversaries.** Add them one at a time (＋ Add event → Type)
+  or import a spreadsheet (CSV: Name, Type, Date). Only month and day are kept.
+  Each morning at 8 AM a "🎉 Celebrating today" message goes out for that day.
 - **Push notifications** for new prayer requests, answered prayers, and church
   messages (never for comments). Alerts are held between 8 PM and 8 AM. Privacy-first: alerts name *who* posted, not the request text.
   Optional, off until configured — see [SETUP-NOTIFICATIONS.md](./SETUP-NOTIFICATIONS.md).

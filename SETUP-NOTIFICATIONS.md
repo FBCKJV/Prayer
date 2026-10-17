@@ -75,6 +75,28 @@ Save, commit, and push. (Or just send me both values and I'll do it.)
 
 ---
 
+## Part D — Birthday & anniversary greetings (optional)
+
+Each morning at **8 AM** the Worker posts one **"🎉 Celebrating today"** message
+in 📣 Messages for that day's birthdays and anniversaries, and alerts everyone.
+It needs to read the database on its own (no one is signed in at 8 AM), so it
+gets its own key:
+
+1. Firebase console → ⚙ **Project settings → Service accounts** →
+   **Generate new private key** → **Generate key**. A `.json` file downloads.
+   *Treat it like a password* — it can read and change the whole database.
+2. Cloudflare → **prayer-notify → Settings → Variables and Secrets → + Add** →
+   Type **Secret**, name `FIREBASE_SA`, value = paste the **entire** contents of
+   that `.json` file (open it in Notepad, select all, copy). **Deploy.**
+   Then delete the downloaded file from your computer.
+3. Cloudflare → **prayer-notify → Settings → Trigger events → + Add → Cron
+   Triggers**: add `0 12 * * *`, then add `0 13 * * *`. (These are UTC. The
+   Worker only posts on whichever one is 8 AM in Massachusetts, so daylight
+   saving needs no attention.)
+
+Without these steps everything else still works, and a leader can post the
+day's greeting by hand: **📅 Calendar → Today → "Post today's greetings"**.
+
 ## Testing it
 
 1. On a phone, open **https://prayer.fbckjv.app** and sign in. A **"Turn on

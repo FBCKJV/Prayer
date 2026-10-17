@@ -22,9 +22,29 @@
  *  4. Give it a URL: either use the *.workers.dev URL, or add a route/custom
  *     domain like prayer-notify.fbckjv.app (Settings → Domains & Routes).
  *  5. Put that URL in the app at js/notify-config.js → NOTIFY_ENDPOINT.
+ *
+ * ── Birthday & anniversary greetings (optional) ──────────────────────────────
+ *  Each morning at 8 AM church time the Worker posts one "🎉 Celebrating
+ *  today" message for that day's birthdays/anniversaries and alerts everyone.
+ *  To turn it on:
+ *  a. Firebase console → ⚙ Project settings → Service accounts →
+ *     "Generate new private key". A .json file downloads.
+ *  b. Worker → Settings → Variables and Secrets → add a **Secret** named
+ *     FIREBASE_SA and paste the WHOLE contents of that file. Deploy.
+ *  c. Worker → Settings → Trigger events → add Cron Triggers
+ *       0 12 * * *     and     0 13 * * *
+ *     (UTC; the Worker posts only on the one that is 8 AM church time, so
+ *     daylight-saving changes need no attention).
+ *  Without FIREBASE_SA, a leader can still post the day's greeting from the
+ *  app (Calendar → "Post today's greetings").
  */
 
 export default {
+  // Cron Triggers (see the header): post the day's birthday/anniversary greeting.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(morningGreeting(env));
+  },
+
   async fetch(request, env) {
     const cors = {
       'Access-Control-Allow-Origin': env.ALLOW_ORIGIN || '*',
@@ -39,7 +59,7 @@ export default {
 
     const { idToken, type, url, eventDate, announcementId } = body || {};
     if (!idToken) return json({ error: 'missing-token' }, 400, cors);
-    if (!COPY[type]) return json({ error: 'bad-type' }, 400, cors);
+    if (!COPY[type] && type !== 'celebrate') return json({ error: 'bad-type' }, 400, cors);
 
     // Diagnostic logging (visible in the Cloudflare Workers Logs tab). Never
     // logs secret values — only whether they are present — so it's safe to keep.
@@ -67,6 +87,15 @@ export default {
     if (LEADER_ONLY.includes(type) && !LEADER_ROLES.includes(role)) {
       console.log(`[notify] leader-only type=${type} refused for uid=${uid} role=${role || 'none'}`);
       return json({ error: 'not-a-leader' }, 403, cors);
+    }
+
+    if (env.CHURCH_TZ) CHURCH_TZ = env.CHURCH_TZ;
+
+    // A leader asking to post today's birthday/anniversary greeting now. Uses
+    // the leader's own login, so Firestore rules apply as usual.
+    if (type === 'celebrate') {
+      const result = await postCelebrations(env, idToken, { uid, author: name, manual: true });
+      return json(result, result.error ? 502 : 200, cors);
     }
 
     // Build the message server-side (never from client text). For a church
@@ -141,7 +170,7 @@ function fmtDate(d, timeZone) {
 }
 // Types only church leaders may send, and the roles that count as leaders
 // (must match isEditor() in firestore.rules).
-const LEADER_ONLY = ['announcement', 'new_event'];
+const LEADER_ONLY = ['announcement', 'new_event', 'celebrate'];
 const LEADER_ROLES = ['admin', 'pastor', 'deacon', 'clerk'];
 
 // Alerts go out only between QUIET_END and QUIET_START (church time).
@@ -194,6 +223,133 @@ function uidFromJwt(token) {
     const decoded = JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '=')));
     return decoded.user_id || decoded.sub || null;
   } catch { return null; }
+}
+
+/* ── Birthday & anniversary greetings ─────────────────────────────────────── */
+
+const FS_BASE = (env) => `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+// Today's date in church time → { ymd: 'YYYY-MM-DD', hour }.
+function churchToday(now) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: CHURCH_TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+  }).formatToParts(now).map((x) => [x.type, x.value]));
+  return { ymd: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) };
+}
+
+// "A, B and C"
+function joinNames(names) {
+  return names.length <= 1 ? (names[0] || '') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
+
+// Cron entry point: only at 8 AM church time (two UTC crons cover DST).
+async function morningGreeting(env) {
+  if (env.CHURCH_TZ) CHURCH_TZ = env.CHURCH_TZ;
+  const { hour } = churchToday(new Date());
+  if (hour !== QUIET_END) return;
+  if (!env.FIREBASE_SA) { console.log('[celebrate] FIREBASE_SA not set — skipping the morning greeting'); return; }
+  let token;
+  try { token = await serviceAccountToken(env.FIREBASE_SA); }
+  catch (e) { console.log(`[celebrate] service-account login failed: ${e && e.message}`); return; }
+  const r = await postCelebrations(env, token, { uid: 'church', author: env.APP_NAME || 'FBC Prayer' });
+  console.log(`[celebrate] cron result ${JSON.stringify(r)}`);
+}
+
+// Find today's birthdays/anniversaries in lists/celebrations and, if any,
+// create announcements/celebrate-YYYY-MM-DD (one per day — a second attempt
+// finds it already there) and alert everyone.
+async function postCelebrations(env, bearer, { uid, author, manual }) {
+  const auth = { Authorization: `Bearer ${bearer}` };
+  const { ymd } = churchToday(new Date());
+  const md = ymd.slice(5);
+  const y = +ymd.slice(0, 4);
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+  const listRes = await fetch(`${FS_BASE(env)}/lists/celebrations`, { headers: auth });
+  if (listRes.status === 404) return { posted: false, reason: 'none' };
+  if (!listRes.ok) return { posted: false, error: `read-${listRes.status}` };
+  const doc = await listRes.json().catch(() => ({}));
+  const values = (((doc.fields || {}).entries || {}).arrayValue || {}).values || [];
+  const today = values.map((v) => (v.mapValue && v.mapValue.fields) || {}).map((f) => ({
+    name: ((f.name && f.name.stringValue) || '').trim(),
+    kind: (f.kind && f.kind.stringValue) || 'birthday',
+    md: (f.md && f.md.stringValue) || '',
+  })).filter((c) => c.name && (c.md === md || (md === '02-28' && !leap && c.md === '02-29')));
+  if (!today.length) return { posted: false, reason: 'none' };
+
+  const birthdays = today.filter((c) => c.kind !== 'anniversary').map((c) => c.name);
+  const anniversaries = today.filter((c) => c.kind === 'anniversary').map((c) => c.name);
+  const lines = [
+    ...birthdays.map((n) => `🎂 Happy birthday, ${n}!`),
+    ...anniversaries.map((n) => `💍 Happy anniversary, ${n}!`),
+    '',
+    'Tap 👍 to send your good wishes.',
+  ];
+  const now = new Date().toISOString();
+  const str = (v) => ({ stringValue: v });
+  const fields = {
+    uid: str(uid), author: str(author), kind: str('celebration'),
+    title: str('🎉 Celebrating today'), body: str(lines.join('\n')),
+    thumbsBy: { arrayValue: {} }, createdAt: { timestampValue: now },
+    eventId: str(''), eventDate: str(''), eventTime: str(''), eventLocation: str(''),
+  };
+  const createRes = await fetch(`${FS_BASE(env)}/announcements?documentId=celebrate-${ymd}`, {
+    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
+  });
+  if (createRes.status === 409) return { posted: false, reason: 'already' };
+  if (!createRes.ok) {
+    const err = await createRes.text().catch(() => '');
+    console.log(`[celebrate] create failed ${createRes.status} ${err.slice(0, 300)}`);
+    return { posted: false, error: `create-${createRes.status}` };
+  }
+
+  // The alert. A greeting posted by hand after 8 PM goes up without one —
+  // waking people for it (or wishing "happy birthday" the next morning) helps nobody.
+  const sendAt = manual ? nextAllowedTime(new Date()) : null;
+  if (sendAt && churchToday(sendAt).ymd !== ymd) return { posted: true, pushed: false, names: today.map((c) => c.name) };
+  const parts = [];
+  if (birthdays.length) parts.push(`Happy birthday, ${joinNames(birthdays)}!`);
+  if (anniversaries.length) parts.push(`Happy anniversary, ${joinNames(anniversaries)}!`);
+  let content = parts.join(' ') + ' Tap to send your wishes.';
+  if (content.length > 170) content = content.slice(0, 167).trimEnd() + '…';
+  const home = env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== '*' ? env.ALLOW_ORIGIN : 'https://prayer.fbckjv.app';
+  const notification = {
+    app_id: env.ONESIGNAL_APP_ID,
+    included_segments: ['Total Subscriptions'],
+    headings: { en: '🎉 Celebrating today' },
+    contents: { en: content },
+    url: home + '/#messages',
+    web_push_topic: 'celebrate',
+  };
+  if (sendAt) notification.send_after = sendAt.toISOString();
+  const { res } = await sendOneSignal(env.ONESIGNAL_REST_API_KEY, notification);
+  return { posted: true, pushed: res.ok, names: today.map((c) => c.name) };
+}
+
+// Sign in as the Firebase service account (FIREBASE_SA secret) and get a
+// short-lived access token for Firestore. Uses only the built-in WebCrypto.
+async function serviceAccountToken(saJson) {
+  const sa = JSON.parse(saJson);
+  const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const enc = (obj) => b64url(new TextEncoder().encode(JSON.stringify(obj)));
+  const iat = Math.floor(Date.now() / 1000);
+  const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({
+    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/datastore',
+    aud: 'https://oauth2.googleapis.com/token', iat, exp: iat + 3600,
+  });
+  const pem = sa.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + unsigned + '.' + b64url(sig),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.access_token) throw new Error(`token ${res.status} ${JSON.stringify(data).slice(0, 200)}`);
+  return data.access_token;
 }
 
 function json(obj, status, cors) {

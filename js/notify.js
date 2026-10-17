@@ -117,6 +117,7 @@ export async function sendPush(type, url, extra) {
     if (!res.ok || data.ok === false) {
       console.warn('[notify] push relay failed', res.status, data);
     }
+    return data;
   } catch (e) {
     console.warn('[notify] push relay unreachable', e);
   }
