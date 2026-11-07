@@ -35,8 +35,10 @@
  *       0 12 * * *     and     0 13 * * *
  *     (UTC; the Worker posts only on the one that is 8 AM church time, so
  *     daylight-saving changes need no attention).
- *  Without FIREBASE_SA, a leader can still post the day's greeting from the
- *  app (Calendar → "Post today's greetings").
+ *  Without FIREBASE_SA, the greeting still goes up on its own the first time
+ *  a leader opens the app that day (the alert waits until 8 AM if it's
+ *  earlier), and a leader can post it by hand (Calendar → "Post today's
+ *  greetings").
  */
 
 export default {

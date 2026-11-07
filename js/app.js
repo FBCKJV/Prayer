@@ -154,6 +154,8 @@ let events = [];              // latest calendar snapshot
 let eventsLoaded = false;
 let unsubEvents = null;
 let celebrations = [];        // birthdays & anniversaries (lists/celebrations)
+let celebrationsLoaded = false;
+let autoGreetTried = '';      // the day we last asked the Worker to post the greeting
 let memberReady = false;      // membership confirmed; safe to attach listeners
 const openComments = new Map(); // prayerId -> { unsub, listEl }
 const expandedCards = new Set(); // prayerIds currently expanded
@@ -1519,7 +1521,7 @@ function startEvents() {
   const user = currentUser;
   unsubEvents = () => {}; // placeholder so we don't double-subscribe
   let unsubCel = null;
-  store.watchCelebrations((list) => { celebrations = list; renderCalendar(); }, () => {})
+  store.watchCelebrations((list) => { celebrations = list; celebrationsLoaded = true; renderCalendar(); }, () => {})
     .then((u) => { if (currentUser !== user) u(); else unsubCel = u; });
   store.watchEvents(ymd(since), (items) => {
     eventsLoaded = true;
@@ -1535,6 +1537,7 @@ function startEvents() {
 
 function renderCalendar() {
   els.newEvent.hidden = !isEditor;
+  autoGreet();
   if (els.calendarView.hidden) return;
   const today = ymd(new Date());
   els.calMonth.textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -1612,6 +1615,25 @@ function renderCalendar() {
   const celebratingToday = eventsOn(today).some((ev) => ev.celebration);
   els.greetBar.hidden = !(isEditor && notify.pushConfigured && calSelected === today && celebratingToday
     && !announcements.some((a) => a.id === 'celebrate-' + today));
+}
+
+// Birthdays/anniversaries announce themselves: the first time a leader's app
+// is open on the day (and the greeting isn't up yet), it asks the Worker to
+// post today's "🎉 Celebrating today" message. The Worker posts at most one
+// per day and holds the alert until 8 AM / skips it after 8 PM, so this is
+// safe on any number of leaders' phones. (With FIREBASE_SA + Cron Triggers
+// the Worker also does this on its own at 8 AM, no app needed.)
+function autoGreet() {
+  if (!isEditor || !notify.pushConfigured || !memberReady) return;
+  if (!msgsLoaded || !eventsLoaded || !celebrationsLoaded) return;
+  const today = ymd(new Date());
+  if (autoGreetTried === today) return;
+  if (announcements.some((a) => a.id === 'celebrate-' + today)) return;
+  if (!eventsOn(today).some((ev) => ev.celebration)) return;
+  autoGreetTried = today;
+  notify.sendPush('celebrate', sectionUrl('messages'))
+    .then((r) => console.log('[celebrate] auto greeting', r))
+    .catch(() => {});
 }
 
 function buildEvent(ev, showDate) {
@@ -2268,7 +2290,7 @@ async function boot() {
         if (unsubEvents) { unsubEvents(); unsubEvents = null; }
         for (const d of [els.composer, els.msgComposer, els.eventComposer]) if (d.open) d.close();
         announcements = []; msgsLoaded = false;
-        events = []; eventsLoaded = false; memberReady = false; celebrations = [];
+        events = []; eventsLoaded = false; memberReady = false; celebrations = []; celebrationsLoaded = false; autoGreetTried = '';
         for (const t of SECTIONS) { els.tabCount[t].hidden = true; delete newSince[t]; }
         for (const id of [...openComments.keys()]) closeComments(id);
         if (els.membersDialog.open) els.membersDialog.close();

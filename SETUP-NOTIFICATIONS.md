@@ -94,8 +94,11 @@ gets its own key:
    Worker only posts on whichever one is 8 AM in Massachusetts, so daylight
    saving needs no attention.)
 
-Without these steps everything else still works, and a leader can post the
-day's greeting by hand: **📅 Calendar → Today → "Post today's greetings"**.
+Without these steps the greeting still posts itself — but only once a pastor,
+deacon, clerk or admin opens the app that day (if that's before 8 AM, the
+alert waits until 8 AM). Steps 1–3 make it fully automatic, even if no leader
+opens the app. A leader can also post it by hand: **📅 Calendar → Today →
+"Post today's greetings"**.
 
 ## Testing it
 
