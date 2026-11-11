@@ -403,9 +403,9 @@ body {
 .member-restore:disabled { opacity: 0.6; cursor: default; }
 
 /* Weekly Prayer List */
-.list-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.list-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
 .list-title { flex: 1; font-size: 1.15rem; margin: 0; }
-.list-head-actions { display: flex; gap: 8px; }
+.list-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .list-section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 14px; }
 .list-section h3 {
   margin: 0 0 8px; font-size: 0.95rem; color: var(--gold-soft);
