@@ -48,6 +48,7 @@ const els = {
   listSave: $('#listSave'),
   listCancel: $('#listCancel'),
   listPrint: $('#listPrint'),
+  listPdf: $('#listPdf'),
   printArea: $('#printArea'),
   listBody: $('#listBody'),
   listEditor: $('#listEditor'),
@@ -915,6 +916,7 @@ function setListMode(editing) {
   els.listSave.hidden = !editing;
   els.listCancel.hidden = !editing;
   els.listPrint.hidden = editing;
+  els.listPdf.hidden = editing;
   showError(els.listError, '');
 }
 
@@ -979,14 +981,194 @@ function printPrayerList() {
   // "Save as PDF" names the file after the page title, so title it with the
   // six-digit date (MMDDYY) of the Wednesday it's for: today if it's
   // Wednesday, otherwise the coming one. e.g. "FBCoPC Prayer List 101426.pdf"
-  const wed = new Date();
-  wed.setDate(wed.getDate() + ((3 - wed.getDay() + 7) % 7));
-  const stamp = pad2(wed.getMonth() + 1) + pad2(wed.getDate()) + pad2(wed.getFullYear() % 100);
+  const stamp = prayerListFileStamp();
   const prevTitle = document.title;
   document.title = `FBCoPC Prayer List ${stamp}`;
   const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   window.print();
+}
+
+// ── Download PDF ─────────────────────────────────────────────────────────
+// Builds the same landscape 8.5x11 two-panel sheet as Print, but as a real
+// PDF file, so it can be sent straight to Staples (or saved/emailed) from a
+// phone without fighting the phone's print dialog. jsPDF is vendored locally
+// and only loaded the first time someone taps the button.
+let jsPDFReady = null;
+function loadJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  if (!jsPDFReady) {
+    jsPDFReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = './js/vendor/jspdf.umd.min.js';
+      s.onload = () => (window.jspdf && window.jspdf.jsPDF ? resolve(window.jspdf.jsPDF) : reject(new Error('jsPDF missing')));
+      s.onerror = () => { jsPDFReady = null; reject(new Error('Could not load the PDF maker')); };
+      document.head.appendChild(s);
+    });
+  }
+  return jsPDFReady;
+}
+
+function loadImageDataURL(src) {
+  return fetch(src)
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('no logo'))))
+    .then((b) => new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(b);
+    }))
+    .catch(() => null); // the faint watermark is optional
+}
+
+function prayerListFileStamp() {
+  const wed = new Date();
+  wed.setDate(wed.getDate() + ((3 - wed.getDay() + 7) % 7));
+  return pad2(wed.getMonth() + 1) + pad2(wed.getDate()) + pad2(wed.getFullYear() % 100);
+}
+
+// Word-wrap a list of styled runs ({text, style}) into lines of runs that fit
+// `width`. Over-long words (e.g. a URL) are broken by character.
+function wrapRuns(doc, runs, width, size) {
+  const words = [];
+  for (const r of runs) {
+    for (const w of r.text.split(/\s+/).filter(Boolean)) words.push({ text: w, style: r.style });
+  }
+  const measure = (t, style) => { doc.setFont('helvetica', style); return doc.getTextWidth(t); };
+  doc.setFontSize(size);
+  const lines = [];
+  let line = []; let x = 0;
+  const push = () => { if (line.length) lines.push(line); line = []; x = 0; };
+  for (let w of words) {
+    let ww = measure(w.text, w.style);
+    while (ww > width) { // break a word that can't fit on any line
+      if (line.length) push();
+      let cut = w.text.length - 1;
+      while (cut > 1 && measure(w.text.slice(0, cut), w.style) > width) cut--;
+      lines.push([{ text: w.text.slice(0, cut), style: w.style, x: 0 }]);
+      w = { text: w.text.slice(cut), style: w.style };
+      ww = measure(w.text, w.style);
+    }
+    const sp = line.length ? measure(' ', line[line.length - 1].style) : 0;
+    if (line.length && x + sp + ww > width) push();
+    const gap = line.length ? measure(' ', line[line.length - 1].style) : 0;
+    line.push({ text: w.text, style: w.style, x: x + gap });
+    x += gap + ww;
+  }
+  push();
+  return lines;
+}
+
+const PT = 72; // points per inch
+function layoutPdfPanel(doc, cats, sections, withHeader, catSize, box, draw) {
+  const { x, y, w, h } = box;
+  let cy = y;
+  const drawLines = (lines, size, lh) => {
+    for (const ln of lines) {
+      if (draw) {
+        doc.setFontSize(size);
+        for (const r of ln) { doc.setFont('helvetica', r.style); doc.text(r.text, x + r.x, cy + size * 0.8); }
+      }
+      cy += size * lh;
+    }
+  };
+  if (withHeader) {
+    const vSize = 9.5;
+    drawLines(wrapRuns(doc, [
+      { text: PRINT_VERSE_REF + ' —', style: 'bold' },
+      { text: PRINT_VERSE, style: 'italic' },
+    ], w, vSize), vSize, 1.25);
+    cy += 6;
+    const dSize = 12;
+    if (draw) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(dSize);
+      doc.text('Date: ___ / ___ / _____', x + w, cy + dSize * 0.8, { align: 'right' });
+    }
+    cy += dSize * 1.25 + 8;
+  }
+  for (const cat of cats) {
+    const items = String(sections[cat] || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const label = cat === 'Other' ? 'Other requests:' : cat + ':';
+    const runs = [{ text: label, style: 'bold' }];
+    if (items.length) runs.push({ text: items.join(' - '), style: 'normal' });
+    drawLines(wrapRuns(doc, runs, w, catSize), catSize, 1.32);
+    cy += 6;
+  }
+  // Write-in lines fill whatever room is left in the panel.
+  const lineGap = 22;
+  let ly = cy + 4 + lineGap;
+  if (draw) {
+    doc.setDrawColor(85); doc.setLineWidth(0.75);
+    while (ly <= y + h) { doc.line(x, ly, x + w, ly); ly += lineGap; }
+  }
+  return cy - y; // height used by the text
+}
+
+async function downloadPrayerListPdf() {
+  const btn = els.listPdf;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Making PDF…';
+  showError(els.listError, '');
+  try {
+    const [JsPDF, logo] = await Promise.all([loadJsPDF(), loadImageDataURL('./assets/logo-display.png')]);
+    const sections = currentSections();
+    const doc = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pageW = 11 * PT, margin = 0.3 * PT;
+    const top = margin, height = 7.7 * PT;
+    const divGap = 0.25 * PT, pad = 0.2 * PT;
+    const panelW = (pageW - 2 * margin - 2 * divGap) / 2;
+    const panels = [
+      { cats: PANEL_A_CATS, header: true, x: margin },
+      { cats: PANEL_B_CATS, header: false, x: margin + panelW + 2 * divGap },
+    ];
+    // Shrink the text a little if a long week's list would overflow a panel,
+    // keeping room for at least two write-in lines.
+    const fitSize = (p) => {
+      const box = { x: p.x + pad, y: top, w: panelW - 2 * pad, h: height };
+      let size = 11;
+      while (size > 7 && layoutPdfPanel(doc, p.cats, sections, p.header, size, box, false) > height - 50) size -= 0.25;
+      return size;
+    };
+    const size = Math.min(...panels.map(fitSize)); // same size on both halves
+    const gs = logo && doc.GState ? new doc.GState({ opacity: 0.06 }) : null;
+    // Two identical pages (A | B), same as Print: duplex, then cut down the middle.
+    for (let page = 0; page < 2; page++) {
+      if (page) doc.addPage('letter', 'landscape');
+      doc.setTextColor(0);
+      for (const p of panels) {
+        if (gs) {
+          const s = 3.1 * PT;
+          doc.saveGraphicsState(); doc.setGState(gs);
+          doc.addImage(logo, 'PNG', p.x + panelW / 2 - s / 2, top + height * 0.46 - s / 2, s, s, 'logo', 'FAST');
+          doc.restoreGraphicsState();
+        }
+        layoutPdfPanel(doc, p.cats, sections, p.header, size, { x: p.x + pad, y: top, w: panelW - 2 * pad, h: height }, true);
+      }
+      doc.setDrawColor(153); doc.setLineWidth(0.75); doc.setLineDashPattern([3, 3], 0);
+      const dx = margin + panelW + divGap;
+      doc.line(dx, top, dx, top + height);
+      doc.setLineDashPattern([], 0);
+    }
+    const name = `FBCoPC Prayer List ${prayerListFileStamp()}.pdf`;
+    const blob = doc.output('blob');
+    const file = typeof File === 'function' ? new File([blob], name, { type: 'application/pdf' }) : null;
+    // On phones, open the share sheet (Save to Files, Mail, Messages, Print,
+    // the Staples app…). Everywhere else, just download the file.
+    const mobile = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (mobile && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; /* fall through to download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    showError(els.listError, 'Sorry — the PDF could not be made. Check your connection and try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
 }
 
 function showListView() {
@@ -1023,6 +1205,7 @@ function leaveListView() {
 els.listNavBtn.addEventListener('click', () => { closeMenu(); showListView(); });
 els.listBack.addEventListener('click', () => leaveListView());
 els.listPrint.addEventListener('click', printPrayerList);
+els.listPdf.addEventListener('click', downloadPrayerListPdf);
 els.listEdit.addEventListener('click', () => { renderListEditor(); setListMode(true); });
 els.listCancel.addEventListener('click', () => { renderListRead(); setListMode(false); });
 els.listSave.addEventListener('click', async () => {

@@ -9,7 +9,7 @@ try {
   importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 } catch (e) { /* offline or not set up yet — ignore */ }
 
-const CACHE = 'prayer-chain-v42';
+const CACHE = 'prayer-chain-v43';
 const SHELL = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const SHELL = [
   './js/notify.js',
   './js/notify-config.js',
   './js/prayer-list-seed.js',
+  './js/vendor/jspdf.umd.min.js',
   './manifest.json',
   './assets/logo-display.png',
   './assets/qr.svg',
