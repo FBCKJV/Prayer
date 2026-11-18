@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="29mm" height="29mm" viewBox="0 0 290 290">
+  <rect x="5" y="5" width="280" height="280" rx="18" fill="#f2f8fd" stroke="#2e86d6" stroke-width="4" stroke-dasharray="14 10"/>
+  <text x="145" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#17324a">Your QR code</text>
+  <text x="145" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#5f7891">goes here</text>
+  <text x="145" y="206" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#5f7891">(replace assets/qr.svg)</text>
+</svg>
