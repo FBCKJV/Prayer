@@ -1,0 +1,160 @@
+rules_version = '2';
+
+// Prayer Chain security rules.
+// Paste these into: Firebase console → Firestore Database → Rules → Publish.
+//
+// How invite-only is enforced WITHOUT any server code / billing:
+//  - To read or write prayers you must be a "member": have a users/{uid} doc.
+//  - You can only CREATE your own users/{uid} doc if the inviteCode you submit
+//    matches the secret stored at config/invite — and rules read that doc with
+//    get(), so the code itself is never exposed to the client.
+//  - config/invite is unreadable/unwritable from the app; edit it only in the
+//    Firebase console. Change its `code` field any time to rotate the invite.
+//
+// Moderators (admins):
+//  - A member becomes a moderator only by setting  role: "admin"  on their
+//    users/{uid} doc IN THE FIREBASE CONSOLE. It cannot be set from the app,
+//    so moderator status can never be self-granted or quietly escalated.
+//  - Moderators may delete/mark any prayer or comment and revoke a member's
+//    access. All of it is enforced here, not just hidden in the UI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        // A removed member keeps their doc (so a moderator can restore them) but
+        // the `removed` flag revokes all access until it's cleared. Use get() with
+        // a default so members whose doc has no `removed` field still pass.
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true;
+    }
+    function isAdmin() {
+      return isMember()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    // Church leaders: moderators (admin), the pastor, deacons and the church
+    // clerk. They edit the standing Weekly Prayer List, post church
+    // messages, and manage the calendar. Set role to "pastor", "deacon" or
+    // "clerk" on a user's doc in the console to grant it. (Removing
+    // members and deleting others' prayers stays admin-only.)
+    function isEditor() {
+      return isMember()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'pastor', 'deacon', 'clerk'];
+    }
+    // '' (not set) or a month-day like '12-02'.
+    function isMonthDay(v) {
+      return v is string && (v == '' || v.matches('^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'));
+    }
+    function validInvite(code) {
+      return code == get(/databases/$(database)/documents/config/invite).data.code;
+    }
+
+    // Secret invite code — console-only.
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // Member directory. Every member can see who is in the group (openness by
+    // design); role is console-only so nobody can make themselves a moderator.
+    match /users/{uid} {
+      allow read: if isMember();
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && validInvite(request.resource.data.inviteCode)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.keys().hasOnly(['name', 'email', 'inviteCode', 'createdAt']);
+      // Members may change their own name and their optional special days
+      // (birthday / anniversary as 'MM-DD', never a year) — nothing else, so
+      // role stays console-only. A moderator may also flip the `removed` flag
+      // (revoke / restore access), touching only the removal bookkeeping
+      // fields — never name, email, or role.
+      allow update: if (request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'birthday', 'anniversary', 'anniversaryName'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 80
+          && isMonthDay(request.resource.data.get('birthday', ''))
+          && isMonthDay(request.resource.data.get('anniversary', ''))
+          && request.resource.data.get('anniversaryName', '') is string
+          && request.resource.data.get('anniversaryName', '').size() <= 80)
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['removed', 'removedAt', 'removedBy', 'restoredAt', 'restoredBy']));
+      // A moderator can also hard-delete a member doc if ever needed.
+      allow delete: if isAdmin();
+    }
+
+    // Standing weekly prayer list — everyone reads; moderators & pastor edit.
+    match /lists/{id} {
+      allow read: if isMember();
+      allow write: if isEditor();
+    }
+
+    // Church messages — one-to-everyone posts from the pastor or a moderator.
+    // Any member may only toggle their 👍 (the thumbsBy list).
+    match /announcements/{id} {
+      allow read: if isMember();
+      allow create: if isEditor()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0;
+      allow update: if isEditor()
+        || (isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['thumbsBy']));
+      allow delete: if isEditor();
+    }
+
+    // Church calendar — everyone reads; pastor & moderators add/edit/remove.
+    // `date` is a plain 'YYYY-MM-DD' string so it sorts and never shifts by time zone.
+    match /events/{id} {
+      allow read: if isMember();
+      allow create, update: if isEditor()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      allow delete: if isEditor();
+    }
+
+    // Prayer requests — one shared feed. No private/DM collections exist.
+    match /prayers/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0;
+      // The author (or a moderator) can edit/answer/delete a request; any other
+      // member may only touch the "I prayed" list or the comment counter.
+      allow update: if isMember() && (
+        resource.data.uid == request.auth.uid
+        || isAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayedBy', 'commentCount'])
+      );
+      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isAdmin());
+
+      // Updates / encouragement on a request.
+      match /comments/{cid} {
+        allow read: if isMember();
+        allow create: if isMember()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0;
+        // Members may only toggle the ❤️ list; nothing else is editable.
+        allow update: if isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['heartedBy']);
+        // Deletable by the comment's author, the prayer's author, or a moderator.
+        allow delete: if isMember() && (
+          resource.data.uid == request.auth.uid
+          || isAdmin()
+          || get(/databases/$(database)/documents/prayers/$(id)).data.uid == request.auth.uid
+        );
+      }
+    }
+  }
+}

@@ -11,6 +11,9 @@
   <sub>A made-up church (“Grace Bible Church”) with sample members and requests: prayers &amp; praise, church messages, the calendar and the weekly Prayer List.</sub>
 </p>
 
+> **Setting this up for your church?** Download **[prayer-chain-generic.zip](prayer-chain-generic.zip)** (click it, then the download button). It includes a `CLAUDE.md` guide: give it to Claude and it will walk you through the whole setup. Or follow [SETUP.md](./SETUP.md) yourself.
+> Don't use the files in the top folder of this repo: they're connected to our church's database and carry our name, logo and Prayer List.
+
 A small, **invite-only** prayer request and prayer-chain app for a church.
 Built to be quiet and low-drama by design:
 
@@ -67,6 +70,8 @@ It's a plain static site (HTML/CSS/JS, no build step) backed by
 
 ## Setup
 
+**Other churches:** start from **[prayer-chain-generic.zip](prayer-chain-generic.zip)** (the same files are in [`generic/`](generic/)). It's this app with our Firebase project, alert settings, name, logo, address and Prayer List taken out, plus a `CLAUDE.md` guide that Claude can walk you through (Claude Code reads it automatically; on claude.ai, attach it to a chat).
+
 See **[SETUP.md](./SETUP.md)** for the ~15-minute, click-by-click Firebase
 walkthrough. The short version:
 
@@ -90,7 +95,14 @@ firestore.rules       Security rules (invite-only, no DMs)
 cloudflare-worker/    Push-notification relay (holds the OneSignal secret)
 manifest.json, sw.js  PWA manifest + offline app-shell service worker
 docs/demo/            Demo video + README preview GIF (sample data only)
+generic/              Same app with our config, name, logo and list removed: other churches start here
+prayer-chain-generic.zip  generic/ zipped for one-click download
+tools/make_generic.py Rebuilds generic/ and the zip
+tools/generic-CLAUDE.md   Source of the CLAUDE.md setup guide in the download
+tools/generic-assets/ Generic logo, icons and QR placeholder used in generic/
 ```
+
+**For maintainers:** after changing the app, run `python3 tools/make_generic.py` and commit the updated `generic/` folder and zip, so the download stays current. The script stops with an error if our Firebase or alert settings, church name, web address or any Prayer List entry would end up in the generic copy.
 
 ## How invite-only stays secure
 

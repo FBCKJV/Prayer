@@ -1,0 +1,602 @@
+/* Prayer Chain — mobile-first, warm sky-blue light theme.
+   Always light (no dark-mode switch, by request) — church members on phones in
+   dark mode still get the same bright, welcoming look. --gold/--gold-soft keep
+   their names but now hold the brand blues. */
+:root {
+  color-scheme: light;
+  --bg: #eaf3fb;         /* soft sky background          */
+  --bg-2: #dcebf8;       /* insets, pills, chips          */
+  --surface: #ffffff;    /* cards, dialogs                */
+  --surface-2: #f2f8fd;
+  --line: #cfe1f2;       /* hairlines / borders           */
+  --text: #17324a;       /* deep slate-blue ink           */
+  --muted: #5f7891;      /* secondary text                */
+  --gold: #2e86d6;       /* BRAND blue (buttons, accents) */
+  --gold-soft: #1f6fb2;  /* deeper blue (hover, links)    */
+  --danger: #e0573a;     /* warm coral for urgent         */
+  --danger-bg: #fdece5;
+  --answered: #2e9e6b;   /* fresh green                   */
+  --shadow: 0 6px 22px rgba(31, 111, 178, 0.14);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --maxw: 640px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+/* Text size (⋯ menu). Every size in the app is in rem, so this scales it all. */
+html[data-text-size="large"] { font-size: 112.5%; }
+html[data-text-size="larger"] { font-size: 125%; }
+/* At the bigger sizes, let tab labels wrap to two lines and keep the
+   Prayer List button to just its icon so the header never crowds. */
+html[data-text-size] .tab-label { white-space: normal; text-align: center; overflow: visible; }
+html[data-text-size] .list-nav-text { display: none; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+#app { min-height: 100dvh; }
+
+/* Top bar */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding-top: env(safe-area-inset-top);
+}
+.topbar-inner {
+  max-width: var(--maxw); margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; flex: 1 1 auto; }
+.brand-mark { width: 30px; height: 30px; flex: 0 0 auto; display: block; }
+.brand-lines { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; overflow: hidden; }
+.brand-text { letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-church { font-size: 0.66rem; font-weight: 600; color: var(--muted); letter-spacing: .2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.who { color: var(--muted); font-size: 0.85rem; max-width: 22vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-nav { white-space: nowrap; }
+.menu-item.on { color: var(--answered); }
+
+/* Overflow menu (Members / Sign out) */
+.menu-wrap { position: relative; }
+.menu-btn { padding: 8px 12px; line-height: 1; font-size: 1.1rem; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  min-width: 168px; padding: 6px; display: flex; flex-direction: column;
+}
+.menu-item {
+  text-align: left; background: none; border: 0; font: inherit; color: var(--text);
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+}
+.menu-item:hover { background: var(--surface-2); }
+.menu-textsize { padding: 8px 12px 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 4px 0; }
+.menu-textsize-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.textsize-btns { display: flex; gap: 6px; }
+.ts-btn {
+  flex: 1; font: inherit; font-weight: 700; padding: 8px 0; border-radius: 8px; cursor: pointer;
+  background: var(--bg-2); color: var(--text); border: 1px solid var(--line);
+}
+.ts-btn[data-size=""] { font-size: 0.9rem; }
+.ts-btn[data-size="large"] { font-size: 1.05rem; }
+.ts-btn[data-size="larger"] { font-size: 1.2rem; }
+.ts-btn.is-on { background: var(--gold); border-color: var(--gold); color: #fff; }
+
+/* My profile */
+.profile { max-height: 86vh; overflow-y: auto; gap: 14px; }
+.pf-section { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.pf-section h3 { margin: 0; font-size: 1rem; color: var(--gold-soft); }
+.pf-section h3 small { color: var(--muted); font-weight: 600; }
+.pf-section .hint { margin: 0; font-size: 0.85rem; }
+.md-row { display: flex; gap: 8px; align-items: center; }
+.md-row select {
+  font: inherit; color: var(--text); background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 10px 8px; min-width: 0;
+}
+.md-row select:first-child { flex: 1.4; }
+.md-row select:nth-child(2) { flex: 0.8; }
+.md-clear { flex: 0 0 auto; font-size: 0.85rem; }
+.pf-reset { text-align: center; margin-top: 2px; }
+
+/* "How do I…?" help */
+.how { max-height: 84vh; overflow-y: auto; gap: 10px; }
+.how-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.how-intro { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.how details { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.how summary {
+  cursor: pointer; padding: 14px 14px; font-weight: 700; font-size: 1rem; list-style: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.how summary::-webkit-details-marker { display: none; }
+.how summary::after { content: '▾'; color: var(--muted); transition: transform .15s; }
+.how details[open] summary::after { transform: rotate(180deg); }
+.how ol { margin: 0; padding: 0 16px 14px 36px; display: flex; flex-direction: column; gap: 8px; font-size: 0.98rem; }
+.how .how-sub { margin: 0; padding: 0 14px 6px; font-weight: 700; font-size: 0.9rem; color: var(--gold-soft); }
+.how .how-note { margin: 0; padding: 0 14px 14px; color: var(--muted); font-size: 0.88rem; }
+.how-btn {
+  display: inline-block; background: var(--gold); color: #fff; font-weight: 700; font-size: 0.85rem;
+  padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+}
+.how-btn.ghost { background: var(--bg-2); color: var(--text); border: 1px solid var(--line); }
+
+/* Phones: drop the least-essential header bits so the brand never crunches. */
+@media (max-width: 600px) {
+  .who { display: none; }                 /* your name still shows in Members */
+  .brand-church { display: none; }        /* keep just "Prayer Chain" + logo */
+  .topbar-inner { gap: 8px; padding: 10px 12px; }
+  .topbar-right { gap: 6px; }
+}
+
+/* Buttons */
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  border-radius: var(--radius-sm); border: 1px solid transparent;
+  padding: 10px 16px; transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--gold); color: #ffffff; }
+.btn-primary:hover { background: var(--gold-soft); }
+.btn-ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+.btn-block { width: 100%; }
+.btn-new { display: block; width: 100%; max-width: var(--maxw); margin: 0 auto 14px; }
+
+/* Banner */
+.banner {
+  max-width: var(--maxw); margin: 14px auto; padding: 12px 16px;
+  background: var(--danger-bg); border: 1px solid var(--danger);
+  border-radius: var(--radius-sm); font-size: 0.9rem;
+}
+.banner code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 5px; }
+
+/* Auth */
+.auth {
+  max-width: 420px; margin: 0 auto; padding: 8vh 20px 40px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.auth-card {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 24px;
+}
+.auth-logo {
+  width: 84px; height: 84px; margin: 0 auto 14px; display: block;
+}
+.auth-title { text-align: center; margin: 0 0 4px; font-size: 1.5rem; }
+.auth-sub { text-align: center; color: var(--muted); margin: 0 0 20px; font-size: 0.92rem; }
+.tabs { display: flex; background: var(--bg-2); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 18px; }
+.tab {
+  flex: 1; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; padding: 8px; border-radius: 8px; cursor: pointer;
+}
+.tab.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.field span small { color: var(--muted); font-weight: 400; }
+.field input, .field textarea, .field select {
+  font: inherit; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 11px 12px; width: 100%;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+.field textarea { resize: vertical; }
+.hint { color: var(--muted); font-weight: 400; }
+.form-error {
+  margin: 0; padding: 10px 12px; background: var(--danger-bg);
+  border: 1px solid var(--danger); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 0.85rem;
+}
+/* Same box, green, for the password-reset confirmation. */
+.form-error.ok {
+  background: #e7f5ee; border-color: var(--answered);
+}
+.forgot-row { margin: -4px 0 0; text-align: right; }
+.link-inline {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--gold-soft); font-size: 0.82rem; font-weight: 600;
+  text-decoration: underline; font-family: inherit;
+}
+.link-inline:hover { color: var(--gold); }
+.link-inline:disabled { opacity: 0.6; cursor: default; }
+.footer-note { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 18px; max-width: 340px; }
+
+/* Feed */
+.feed { max-width: var(--maxw); margin: 0 auto; padding: 16px 16px 48px; }
+.feed-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; scrollbar-width: none; }
+.feed-tabs::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface);
+  color: var(--muted); font: inherit; font-weight: 600; font-size: 0.85rem;
+  padding: 7px 14px; border-radius: 999px; cursor: pointer;
+}
+.chip.is-active { background: var(--gold); color: #ffffff; border-color: var(--gold); }
+
+.feed-list { display: flex; flex-direction: column; gap: 14px; }
+
+/* Prayer card */
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
+.card.is-urgent { border-color: var(--danger); }
+.card.is-answered { border-color: var(--answered); }
+
+/* Collapsed summary (the whole thing is a button) */
+.card-summary {
+  display: flex; flex-direction: column; gap: 7px; width: 100%;
+  text-align: left; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--text); padding: 14px 38px 14px 16px; position: relative;
+}
+.card-summary:hover { background: var(--surface-2); }
+.card-line { font-size: 1rem; line-height: 1.35; overflow-wrap: anywhere; }
+.card-label { font-weight: 700; }
+.card-who { color: var(--muted); }
+.card-subline { color: var(--muted); font-size: 0.78rem; display: flex; gap: 6px; flex-wrap: wrap; }
+.chevron { position: absolute; right: 15px; top: 15px; color: var(--muted); transition: transform .18s ease; }
+.card.expanded .chevron { transform: rotate(180deg); }
+.card-detail { display: none; padding: 0 16px 16px; }
+.card.expanded .card-detail { display: block; }
+.card-detail .card-body { margin-top: 2px; }
+
+.card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tag {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; background: var(--bg-2); color: var(--muted);
+}
+.tag.cat { color: var(--gold-soft); }
+.tag.urgent { background: var(--danger-bg); color: var(--danger); }
+.tag.answered { background: color-mix(in srgb, var(--answered) 18%, transparent); color: var(--answered); }
+.card-title { font-size: 1.05rem; font-weight: 700; margin: 2px 0 6px; }
+.card-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-meta { color: var(--muted); font-size: 0.8rem; margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.card-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.pray-btn {
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line);
+  background: var(--bg-2); color: var(--text); font: inherit; font-weight: 600;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+}
+.pray-btn.is-on { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); color: var(--gold-soft); }
+.pray-count { color: var(--muted); font-weight: 600; }
+.link-btn { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 8px 4px; }
+.link-btn:hover { color: var(--text); }
+.link-btn.danger:hover { color: var(--danger); }
+.spacer { flex: 1; }
+
+/* Comments */
+.comments { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; display: none; }
+.comments.open { display: block; }
+.comment { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.comment:last-of-type { border-bottom: 0; }
+.comment-author { font-weight: 600; font-size: 0.85rem; }
+.comment-time { color: var(--muted); font-size: 0.75rem; margin-left: 6px; }
+.comment-body { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+.comment-actions { margin-top: 4px; }
+.heart-btn {
+  background: none; border: 0; cursor: pointer; font: inherit; color: var(--muted);
+  padding: 3px 6px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+}
+.heart-btn span[aria-hidden] { font-size: 0.95rem; filter: grayscale(1); opacity: .5; transition: filter .12s, opacity .12s; }
+.heart-btn.is-on span[aria-hidden] { filter: none; opacity: 1; }
+.heart-btn.is-on { color: var(--danger); }
+.heart-count { font-size: 0.8rem; font-weight: 700; }
+.comment-form { display: flex; gap: 8px; margin-top: 12px; }
+.comment-form input {
+  flex: 1; font: inherit; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px;
+}
+.comment-form input:focus { outline: none; border-color: var(--gold); }
+
+/* Empty / loading */
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
+.empty p { margin: 6px 0; }
+.feed-hint { color: var(--text); }
+.feed-code { font-size: 0.75rem; color: var(--muted); word-break: break-all; }
+.empty .btn { margin-top: 12px; }
+.skeleton { height: 120px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Dialog */
+.dialog {
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 0;
+  background: var(--surface); color: var(--text); width: min(92vw, 460px); box-shadow: var(--shadow);
+}
+.dialog::backdrop { background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+.dialog-form { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.dialog-title { margin: 0; font-size: 1.2rem; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; }
+.check input { width: 18px; height: 18px; accent-color: var(--gold); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* Moderator badge (shown publicly next to moderators' names) */
+.mod-badge {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; margin-left: 6px;
+  background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-soft);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.comment-author .mod-badge { font-size: 0.62rem; }
+.mod-badge.leader {
+  background: color-mix(in srgb, var(--answered) 16%, transparent); color: #1f7a52;
+  border-color: color-mix(in srgb, var(--answered) 40%, transparent);
+}
+.cal-fields { border-left: 3px solid var(--line); padding-left: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg-event {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: 0.88rem; font-weight: 600;
+}
+.msg-event .link-btn { padding: 0; font-weight: 600; color: var(--gold-soft); }
+.passed-tag {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  background: #e6e9ee; color: #6b7684; padding: 2px 8px; border-radius: 999px;
+}
+.msg-card.is-passed .msg-event { opacity: 0.75; }
+.announced-tag {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  color: var(--gold-soft); font-size: 0.8rem; font-weight: 700;
+}
+.msg-card.flash { box-shadow: 0 0 0 3px var(--gold); transition: box-shadow .3s; }
+.greet-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+  background: #fff7e6; border: 1px solid #f3c969; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 0.9rem;
+}
+.greet-bar span { flex: 1 1 200px; }
+.celebration-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.cel-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 2px; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+.cel-row:last-child { border-bottom: 0; }
+.cel-row .cel-when { color: var(--muted); font-size: 0.82rem; min-width: 74px; }
+.cel-row .cel-name { flex: 1; overflow-wrap: anywhere; }
+.muted-small { color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: 0; }
+.import-link { margin-top: 12px; font-size: 0.85rem; color: var(--gold-soft); }
+.import-preview { max-height: 40vh; overflow-y: auto; font-size: 0.88rem; }
+.import-preview table { width: 100%; border-collapse: collapse; }
+.import-preview td, .import-preview th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.import-preview .skipped { color: var(--danger); }
+.event.is-celebration { background: #fffaf0; }
+.msg-card.is-celebration { background: #fffaf0; border-color: #f3c969; }
+.quiet-note { display: block; color: var(--muted); font-size: 0.78rem; }
+.mod-badge.pastor {
+  background: color-mix(in srgb, #7a5cd0 20%, transparent); color: #5a3fb0;
+  border-color: color-mix(in srgb, #7a5cd0 45%, transparent);
+}
+
+/* Members dialog */
+.members-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.members-note { color: var(--muted); font-size: 0.82rem; margin: -4px 0 4px; }
+.members-list { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
+.member {
+  display: flex; align-items: center; gap: 10px; padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.member:last-child { border-bottom: 0; }
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-weight: 600; display: flex; align-items: center; flex-wrap: wrap; }
+.member-sub { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-remove {
+  flex: 0 0 auto; background: none; border: 1px solid var(--line); color: var(--muted);
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.member-remove:hover { border-color: var(--danger); color: var(--danger); }
+.member-you { color: var(--muted); font-size: 0.78rem; flex: 0 0 auto; }
+.members-heading {
+  margin: 14px 0 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--muted);
+}
+.member.is-removed { opacity: 0.7; }
+.member.is-removed .member-name { color: var(--muted); }
+.member-restore {
+  flex: 0 0 auto; background: none; border: 1px solid var(--line); color: var(--gold-soft);
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.member-restore:hover { border-color: var(--answered); color: var(--answered); }
+.member-restore:disabled { opacity: 0.6; cursor: default; }
+
+/* Weekly Prayer List */
+.list-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.list-title { flex: 1; font-size: 1.15rem; margin: 0; }
+.list-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 14px; }
+.list-section h3 {
+  margin: 0 0 8px; font-size: 0.95rem; color: var(--gold-soft);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.list-section ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.list-section li { overflow-wrap: anywhere; }
+.list-section .empty-note { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.list-meta { color: var(--muted); font-size: 0.78rem; text-align: center; margin: 6px 0 20px; }
+/* Editor */
+.list-editor .ed-field { margin-bottom: 14px; }
+.list-editor label { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: var(--gold-soft); }
+.list-editor textarea {
+  width: 100%; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; resize: vertical;
+}
+.list-editor .ed-hint { color: var(--muted); font-size: 0.78rem; margin: 4px 0 0; }
+
+/* Install ("Add to Home Screen") prompt */
+.install-bar {
+  max-width: var(--maxw); margin: 0 auto 14px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
+}
+.install-bar img { width: 40px; height: 40px; flex: 0 0 auto; }
+.install-bar .grow { flex: 1; min-width: 0; }
+.install-bar .it { font-weight: 700; font-size: 0.92rem; }
+.install-bar .is { color: var(--muted); font-size: 0.8rem; }
+#notifyBar { align-items: flex-start; }
+.notify-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.notify-actions .btn { padding: 10px 14px; }
+.install-bar .x { background: none; border: 0; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 6px; line-height: 1; }
+.ios-help {
+  max-width: var(--maxw); margin: 0 auto 14px; padding: 12px 14px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: 0.88rem; color: var(--text);
+}
+.ios-help b { color: var(--gold-soft); }
+
+/* About / help dialog */
+.about { max-height: 84vh; overflow-y: auto; gap: 16px; }
+.about-head { display: flex; align-items: center; gap: 12px; }
+.about-logo { width: 42px; height: 42px; flex: 0 0 auto; }
+.about-heading { flex: 1; min-width: 0; }
+.about-title { font-weight: 700; font-size: 1.1rem; }
+.about-ver { color: var(--muted); font-size: 0.8rem; }
+.about-section h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--gold-soft); text-transform: uppercase; letter-spacing: .4px; }
+.about-section p { margin: 6px 0; font-size: 0.92rem; }
+.about-section ul { margin: 6px 0; padding-left: 20px; font-size: 0.92rem; }
+.about-section li { margin: 3px 0; }
+.about-note { color: var(--muted); font-size: 0.82rem !important; }
+.about-qr { display: block; width: 168px; height: 168px; margin: 4px auto 6px; background: #fff; padding: 8px; border-radius: 10px; border: 1px solid var(--line); }
+.about-url { text-align: center; font-weight: 700; color: var(--gold-soft); }
+.about-footer { border-top: 1px solid var(--line); padding-top: 12px; text-align: center; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+
+/* Section nav (Prayers & Praise / Messages / Calendar) — second row of the top bar */
+.main-nav {
+  max-width: var(--maxw); margin: 0 auto; display: flex; gap: 4px;
+  padding: 0 12px 8px;
+}
+/* Phone-style tabs: icon on top, short label below, so all three stay the
+   same width ("Prayers & Praise" included). The "(2)" count rides next to the
+   icon so it never widens the label. */
+.main-tab {
+  flex: 1 1 0; min-width: 0; position: relative; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; padding: 6px 4px 7px; border-radius: 10px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.15;
+}
+.main-tab:hover { color: var(--text); }
+.main-tab.is-active { background: var(--surface); color: var(--gold-soft); box-shadow: var(--shadow); }
+.tab-top { display: inline-flex; align-items: center; gap: 3px; height: 1.35rem; }
+.tab-icon { font-size: 1.15rem; line-height: 1; }
+.tab-label { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tab-count { color: var(--danger); font-weight: 800; font-size: 0.78rem; }
+.tag.new { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.event-title .tag.new { margin-left: 6px; vertical-align: 2px; font-size: 0.62rem; }
+@media (max-width: 360px) {
+  .tab-label { font-size: 0.72rem; }
+  .main-nav { padding: 0 8px 8px; }
+  .list-nav-text { display: none; } /* just 📋 so the app name always fits */
+}
+
+/* Church messages */
+.msg-card { padding: 14px 16px 12px; }
+.msg-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.msg-author { font-weight: 700; display: inline-flex; align-items: center; flex-wrap: wrap; }
+.msg-time { color: var(--muted); font-size: 0.78rem; }
+.msg-title { margin: 8px 0 2px; font-size: 1.08rem; }
+.msg-card .card-body { margin: 6px 0 0; }
+.msg-card .card-actions { margin-top: 10px; }
+.thumbs-btn { padding: 6px 12px; }
+.thumbs-who { color: var(--muted); font-size: 0.78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+
+/* Church calendar */
+.cal {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 12px 6px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cal-month { margin: 0; font-size: 1.1rem; text-align: center; flex: 1; }
+.cal-nav { padding: 6px 14px; font-size: 1.2rem; line-height: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-day {
+  position: relative; aspect-ratio: 1 / 1; min-height: 38px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: none; border: 0; border-radius: 10px; font: inherit; color: var(--text); cursor: pointer;
+}
+.cal-day:hover { background: var(--surface-2); }
+.cal-day.is-out { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.cal-day.is-today .cal-num { color: var(--gold-soft); font-weight: 800; }
+.cal-day.is-selected { background: var(--gold); color: #fff; }
+.cal-day.is-selected .cal-num { color: #fff; }
+.cal-num { font-size: 0.92rem; font-weight: 600; line-height: 1; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.cal-day.is-selected .cal-dot { background: #fff; }
+.cal-today { display: block; margin: 2px auto 0; font-size: 0.85rem; font-weight: 600; color: var(--gold-soft); }
+.cal-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.section-heading {
+  margin: 18px 0 8px; font-size: 0.85rem; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--gold-soft);
+}
+.cal-day-head .section-heading { margin: 0; }
+.cal-day-head .btn { padding: 7px 12px; font-size: 0.88rem; flex: 0 0 auto; }
+.event-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.event {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 14px;
+}
+.event-date {
+  flex: 0 0 auto; width: 48px; display: flex; flex-direction: column; align-items: center;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 0;
+  font: inherit; color: var(--text); cursor: pointer;
+}
+.event-mon { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--gold-soft); }
+.event-dom { font-size: 1.2rem; font-weight: 800; line-height: 1.1; }
+.event-info { flex: 1; min-width: 0; }
+.event-title { font-weight: 700; overflow-wrap: anywhere; }
+.event-sub { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.event-repeat { color: var(--gold-soft); font-size: 0.82rem; font-weight: 600; }
+.event-notes { font-size: 0.9rem; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.event-actions { display: flex; gap: 8px; margin-top: 2px; }
+.event-actions .link-btn { padding: 4px 2px; font-size: 0.85rem; }
+.event-empty { color: var(--muted); font-size: 0.9rem; margin: 2px 0; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; min-width: 0; }
+
+/* One-time "What's new" dialog */
+.whats-new p { margin: 0; }
+.wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.wn-list li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.95rem; }
+.wn-list li > span { font-size: 1.4rem; line-height: 1.2; flex: 0 0 auto; }
+.wn-note { color: var(--muted); font-size: 0.85rem; }
+.whats-new .dialog-actions { flex-wrap: wrap; }
+
+/* ── Printable Weekly Prayer List ──────────────────────────────────────
+   Landscape 8.5x11 split into two half-page panels. Printed double-sided and
+   cut down the middle, each sheet yields two identical two-sided half-page
+   prayer sheets (Panel A = verse/Lost/Praise/Health, Panel B = Government/
+   Church/Missionaries/Unspoken/Other). Front sheet A|B, back sheet B|A. */
+#printArea { display: none; }
+@media print {
+  @page { size: letter landscape; margin: 0.3in; }
+  html, body { background: #fff !important; }
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block !important; }
+
+  .pp-sheet {
+    box-sizing: border-box; display: flex; width: 100%; height: 7.7in;
+    page-break-after: always; color: #000;
+    font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  }
+  .pp-sheet:last-child { page-break-after: auto; }
+  .pp-divider { flex: 0 0 auto; border-left: 1px dashed #999; margin: 0 0.25in; }
+  .pp-panel {
+    flex: 1 1 0; min-width: 0; padding: 0 0.2in; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .pp-content { position: relative; z-index: 1; flex: 0 0 auto; }
+  .pp-fill { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; overflow: hidden; margin-top: 4pt; }
+  .pp-line { border-bottom: 1px solid #555; height: 22pt; }
+  .pp-wm {
+    position: absolute; top: 46%; left: 50%; width: 3.1in; height: 3.1in;
+    transform: translate(-50%, -50%); opacity: 0.06; z-index: 0;
+  }
+  .pp-verse { font-size: 9.5pt; font-style: italic; line-height: 1.25; margin: 0 0 6pt; }
+  .pp-verse strong { font-style: normal; }
+  .pp-date { font-size: 12pt; font-weight: 700; text-align: right; margin: 0 0 8pt; }
+  .pp-cat { font-size: 11pt; line-height: 1.32; margin: 0 0 6pt; overflow-wrap: anywhere; }
+}
+
+[hidden] { display: none !important; }
