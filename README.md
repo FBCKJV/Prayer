@@ -1,5 +1,16 @@
 # Prayer Chain ✝
 
+<p align="center">
+  <a href="docs/demo/prayer-chain-demo.mp4">
+    <img src="docs/demo/demo-preview.gif" width="300" alt="Prayer Chain in use: tapping I prayed, leaving an encouragement, and filtering answered prayers">
+  </a>
+</p>
+
+<p align="center">
+  <b><a href="docs/demo/prayer-chain-demo.mp4">▶ Watch the full demo video (95 sec)</a></b><br>
+  <sub>A made-up church (“Grace Bible Church”) with sample members and requests: prayers &amp; praise, church messages, the calendar and the weekly Prayer List.</sub>
+</p>
+
 A small, **invite-only** prayer request and prayer-chain app for a church.
 Built to be quiet and low-drama by design:
 
@@ -78,6 +89,7 @@ js/app.js             UI controller
 firestore.rules       Security rules (invite-only, no DMs)
 cloudflare-worker/    Push-notification relay (holds the OneSignal secret)
 manifest.json, sw.js  PWA manifest + offline app-shell service worker
+docs/demo/            Demo video + README preview GIF (sample data only)
 ```
 
 ## How invite-only stays secure
